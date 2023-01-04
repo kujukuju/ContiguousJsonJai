@@ -1,6 +1,6 @@
 ## Contiguous Json
 
-This library reads through the json string only in the forward direction and fills in your struct type.
+This library reads through the json string only in the forward direction and fills in your struct type allocating only in contiguous memory.
 
 Supports:
   * structs

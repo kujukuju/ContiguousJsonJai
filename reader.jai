@@ -18,11 +18,6 @@ json_parse :: (content: string, $T: Type, $keep_strings_in_place: bool = false) 
 
 #scope_file
 
-MemberTypeInfo :: struct {
-    name: string;
-    info: *Type_Info;
-}
-
 // expected that these functions get provided the next non-whitespace index, but are allowed to return a whitespace index
 
 json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_struct(T) {
