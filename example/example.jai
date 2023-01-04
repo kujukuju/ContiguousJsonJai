@@ -1,5 +1,9 @@
 main :: () {
     {
+        string_to_int("102", 10, s32);
+        string_to_int("102", 10, u8);
+    }
+    {
         print("Parsing 1.\n");
         result, memory, success := json_parse(JSON_STRING1, JsonType1);
         defer free(memory);
@@ -9,42 +13,42 @@ main :: () {
             print("Unsuccessful 1.\n");
         } 
     }
-    // {
-    //     print("Parsing 2.\n");
-    //     result, memory, success := json_parse(JSON_STRING2, [..] JsonType2Entry);
-    //     defer free(memory);
-    //     if success {
-    //         print_anything(result);
-    //     } else {
-    //         print("Unsuccessful 2.\n");
-    //     }
-    // }
-    // {
-    //     print("Parsing 3.\n");
-    //     result, memory, success := json_parse(JSON_STRING3, [2] JsonType3Entry);
-    //     defer free(memory);
-    //     if success {
-    //         print_anything(result);
-    //     } else {
-    //         print("Unsuccessful 3.\n");
-    //     }
-    // }
-    // {
-    //     JSON_STRING :: #string DONE
-    //         [-237462374673276894279832749832423479823246327846]
-    //     DONE
+    {
+        print("Parsing 2.\n");
+        result, memory, success := json_parse(JSON_STRING2, [..] JsonType2Entry);
+        defer free(memory);
+        if success {
+            print_anything(result);
+        } else {
+            print("Unsuccessful 2.\n");
+        }
+    }
+    {
+        print("Parsing 3.\n");
+        result, memory, success := json_parse(JSON_STRING3, [2] JsonType3Entry);
+        defer free(memory);
+        if success {
+            print_anything(result);
+        } else {
+            print("Unsuccessful 3.\n");
+        }
+    }
+    {
+        JSON_STRING :: #string DONE
+            [-237462374673276894279832749832423479823246327846]
+        DONE
 
-    //     JsonType :: [..] int;
+        JsonType :: [..] int;
 
-    //     print("Parsing 4.\n");
-    //     result, memory, success := json_parse(JSON_STRING, JsonType);
-    //     defer free(memory);
-    //     if success {
-    //         print_anything(result);
-    //     } else {
-    //         print("Unsuccessful.\n");
-    //     }
-    // }
+        print("Parsing 4.\n");
+        result, memory, success := json_parse(JSON_STRING, JsonType);
+        defer free(memory);
+        if success {
+            print_anything(result);
+        } else {
+            print("Unsuccessful.\n");
+        }
+    }
 }
 
 print_anything :: (value: $T, name: string = "", depth: int = 0) {
@@ -115,6 +119,11 @@ JsonType1 :: struct {
         key6: *string;
     };
 
+    EnumType :: enum s32 {
+        Hey :: 1;
+        No :: 2;
+    }
+
     // optional
     key1: *string;
     // required
@@ -127,6 +136,7 @@ JsonType1 :: struct {
     key7: *float;
     // optional
     key8: *float;
+    enum_val: EnumType;
 }
 
 JsonType2Entry :: struct {
@@ -161,7 +171,8 @@ JSON_STRING1 :: #string DONE
 		"key5": 2.0,
 		"key6": "lol"
 	},
-	"key8": 1.5
+	"key8": 1.5,
+    "enum_val": 2
 }
 DONE
 
