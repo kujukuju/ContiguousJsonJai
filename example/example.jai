@@ -1,37 +1,111 @@
 main :: () {
-    result1, success1 := json_parse(JSON_STRING1, JsonType1, #run json_buffer_size(JsonType1));
-    if success1 {
-        prints_value1(result1);
-    } else {
-        print("Unsuccessful 1.\n");
-    } 
+    {
+        print("Parsing 1.\n");
+        result, memory, success := json_parse(JSON_STRING1, JsonType1);
+        defer free(memory);
+        if success {
+            print_anything(result);
+        } else {
+            print("Unsuccessful 1.\n");
+        } 
+    }
+    // {
+    //     print("Parsing 2.\n");
+    //     result, memory, success := json_parse(JSON_STRING2, [..] JsonType2Entry);
+    //     defer free(memory);
+    //     if success {
+    //         print_anything(result);
+    //     } else {
+    //         print("Unsuccessful 2.\n");
+    //     }
+    // }
+    // {
+    //     print("Parsing 3.\n");
+    //     result, memory, success := json_parse(JSON_STRING3, [2] JsonType3Entry);
+    //     defer free(memory);
+    //     if success {
+    //         print_anything(result);
+    //     } else {
+    //         print("Unsuccessful 3.\n");
+    //     }
+    // }
+    // {
+    //     JSON_STRING :: #string DONE
+    //         [-237462374673276894279832749832423479823246327846]
+    //     DONE
 
-    result2, success2 := json_parse(JSON_STRING2, [..] JsonType2Entry, JsonType2Entry, #run json_buffer_size(JsonType2Entry));
-    if success2 {
-        prints_value2(result2);
+    //     JsonType :: [..] int;
+
+    //     print("Parsing 4.\n");
+    //     result, memory, success := json_parse(JSON_STRING, JsonType);
+    //     defer free(memory);
+    //     if success {
+    //         print_anything(result);
+    //     } else {
+    //         print("Unsuccessful.\n");
+    //     }
+    // }
+}
+
+print_anything :: (value: $T, name: string = "", depth: int = 0) {
+    for i: 0..depth - 1 {
+        print("\t");
+    }
+    if name {
+        print("% = %\n", name, value);
     } else {
-        print("Unsuccessful 2.\n");
+        print("%\n", value);
     }
 
-    result3, success3 := json_parse(JSON_STRING3, [2] JsonType3Entry, 2, JsonType3Entry, #run json_buffer_size(JsonType3Entry));
-    if success3 {
-        prints_value3(result3);
-    } else {
-        print("Unsuccessful 2.\n");
-    }
+    #insert #run (t: Type) -> string {
+        builder: String_Builder;
+
+        struct_info := cast(*Type_Info_Struct) t;
+        if struct_info.type == .STRUCT {
+            for member: struct_info.members {
+                if member.offset_into_constant_storage >= 0 {
+                    continue;
+                }
+
+                if member.type.type == .POINTER {
+                    append(*builder, "if value.");
+                    append(*builder, member.name);
+                    append(*builder, " {\n");
+                    append(*builder, "print_anything(");
+                    append(*builder, "<< value.");
+                    append(*builder, member.name);
+                    append(*builder, ", \"");
+                    append(*builder, member.name);
+                    append(*builder, "\", depth + 1);\n");
+                    append(*builder, "}\n");
+                } else {
+                    append(*builder, "print_anything(");
+                    append(*builder, "value.");
+                    append(*builder, member.name);
+                    append(*builder, ", \"");
+                    append(*builder, member.name);
+                    append(*builder, "\", depth + 1);\n");
+                }
+            }
+        } else if struct_info.type == .ARRAY {
+            append(*builder, "for i: 0..value.count - 1 {\n");
+            append(*builder, "print_anything(value[i], tprint(\"value[%]\", i), depth + 1);\n");
+            append(*builder, "};\n");
+        }
+
+        return builder_to_string(*builder);
+    }(T);
 }
 
 prints_value1 :: (value: JsonType1) {
-    print("value1 %\n", value);
+    print("value1 % % % % %\n", value, << value.key1, << value.key3, << value.key4.key6, << value.key8);
 }
 
-ENTRY2_SIZE :: #run json_buffer_size(JsonType2Entry);
-prints_value2 :: (value: [..] ContiguousJson(JsonType2Entry, ENTRY2_SIZE)) {
+prints_value2 :: (value: [..] JsonType2Entry) {
     print("value2 %\n", value);
 }
 
-ENTRY3_SIZE :: #run json_buffer_size(JsonType3Entry);
-prints_value3 :: (value: [2] ContiguousJson(JsonType3Entry, ENTRY3_SIZE)) {
+prints_value3 :: (value: [2] JsonType3Entry) {
     print("value3 %\n", value);
 }
 
@@ -68,13 +142,14 @@ JsonType2Entry :: struct {
 
 JsonType3Entry :: struct {
     // required
-    number: int;
+    what: int; @json(number)
     // optional
     value: *float;
     // required
     other_number: u32;
     // required
     fourth_number: int;
+    test: string; @json(context)
 }
 
 JSON_STRING1 :: #string DONE
@@ -95,11 +170,11 @@ JSON_STRING2 :: #string DONE
     {
         "number": -4,
         "value": 0.5,
-        "other_number: 4,
+        "other_number": 4,
         "fourth_number": 400
     }, {
         "number": -5,
-        "other_number: 5,
+        "other_number": 5,
         "fourth_number": 500
     }
 ]
@@ -110,15 +185,17 @@ JSON_STRING3 :: #string DONE
     {
         "number": -4,
         "value": 0.5,
-        "other_number: 4,
-        "fourth_number": 400
+        "other_number": 4,
+        "fourth_number": 400,
+        "context": "context one!"
     }, {
         "number": -5,
-        "other_number: 5,
-        "fourth_number": 500
+        "other_number": 5,
+        "fourth_number": 500,
+        "context": "context two???\" I escaped a quote"
     }
 ]
 DONE
 
-#import "ContiguousJsonJai";
+#import "ContiguousJsonJai"(VALIDATE=true);
 #import "Basic";
