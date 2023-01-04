@@ -13,7 +13,7 @@ Supports:
   * in place strings `points to the string in the json`
   * allocated strings `copies the string in the json`
   * optional values `creates a pointer in contiguous memory`
-  * renaming values `json(name)`
+  * renaming values `@json(name)`
 
 Any memory that needs to be allocated gets allocated into a contiguous block of memory that can be freed in a single call.
 
@@ -23,7 +23,15 @@ The benefit is memory allocations are very cheap, so it's reasonable to use poin
 
 ---
 
-Setup:
+### TODO
+
+Going to try more test cases but it's annoying because I still have to make a struct for each case.
+
+Going to finish the writer which should be infinitely easier than the reader.
+
+---
+
+### Setup
 
 I fixed this line in `string_to_int` to get the code working properly:
 `multiplier := 1;` -> `multiplier: T = 1;`
