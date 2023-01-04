@@ -6,6 +6,7 @@ Supports:
   * structs
   * resizable arrays
   * fixed arrays
+  * array views
   * all integer types
   * all float types
   * all enum types
@@ -14,6 +15,9 @@ Supports:
   * allocated strings `copies the string in the json`
   * optional values `creates a pointer in contiguous memory`
   * renaming values `@json(name)`
+
+Does not support:
+  * undefined/generic types
 
 Any memory that needs to be allocated gets allocated into a contiguous block of memory that can be freed in a single call.
 
