@@ -150,13 +150,16 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
 
 json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     offset := allocate(memory, #run size_of(T), keep_strings_in_place, T);
-    << absolute(result, memory, relative) = offset;
-    entry: *T = offset;
+    if is_null(content, index) {
+        return index + 4, true;
+    } else {
+        << absolute(result, memory, relative) = offset;
+        entry: *T = offset;
 
-    success: bool;
-    index, success = json_parse_into(content, index, entry, memory, true, keep_strings_in_place);
-
-    return index, success;
+        success: bool;
+        index, success = json_parse_into(content, index, entry, memory, true, keep_strings_in_place);
+        return index, success;
+    }
 }
 
 json_parse_into :: inline (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_enum(T) {
@@ -554,20 +557,31 @@ is_true_or_false :: inline (content: string, index: int) -> bool {
 }
 
 is_true :: inline (content: string, index: int) -> bool {
-    value := true;
+    value := index + 4 <= content.count;
     value = value && content.data[index] == #char "t";
     value = value && content.data[index + 1] == #char "r";
     value = value && content.data[index + 2] == #char "u";
     value = value && content.data[index + 3] == #char "e";
+    return value;
 }
 
 is_false :: inline (content: string, index: int) -> bool {
-    value := true;
+    value := index + 5 <= content.count;
     value = value && content.data[index] == #char "f";
     value = value && content.data[index + 1] == #char "a";
     value = value && content.data[index + 2] == #char "l";
     value = value && content.data[index + 3] == #char "s";
     value = value && content.data[index + 4] == #char "e";
+    return value;
+}
+
+is_null :: inline (content: string, index: int) -> bool {
+    value := index + 4 <= content.count;
+    value = value && content.data[index] == #char "n";
+    value = value && content.data[index + 1] == #char "u";
+    value = value && content.data[index + 2] == #char "l";
+    value = value && content.data[index + 3] == #char "l";
+    return value;
 }
 
 get_string_until_closing_quote :: inline (content: string, index: int) -> string, bool {

@@ -1,25 +1,23 @@
 
-json_write :: (object: $T, $output_constants: bool = true, $write_null_pointers: bool = false, $formatted: bool = false) -> string {
+json_write :: (object: $T, $output_constants: bool = true, $write_null_members: bool = false, $formatted: bool = false) -> string {
     builder: String_Builder;
 
-    write_output(object, *builder, output_constants, write_null_pointers, formatted);
+    write_output(object, *builder, output_constants, write_null_members, formatted);
 
     return builder_to_string(*builder);
 }
 
 #scope_file
 
-write_output :: (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) #modify modify_require_struct(T) {
-    #insert #run get_struct_string(T, output_constants, write_null_pointers, formatted);
+write_output :: (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) #modify modify_require_struct(T) {
+    #insert #run get_struct_string(T, output_constants, write_null_members, formatted);
 }
 
-write_output :: (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) #modify modify_require_array_reject_fixed_array(T) {
+write_output :: (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) #modify modify_require_array_reject_fixed_array(T) {
     append(builder, "[");
 
-    // TODO check write_null_pointers here
-
     for i: 0..object.count - 1 {
-        write_output(object[i], builder, output_constants, write_null_pointers, formatted);
+        write_output(object[i], builder, output_constants, write_null_members, formatted);
 
         if i < object.count - 1 {
             append(builder, ",");
@@ -29,19 +27,19 @@ write_output :: (object: $T, builder: *String_Builder, $output_constants: bool, 
     append(builder, "]");
 }
 
-write_output :: (object: [$N] $T, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
-    #insert #run get_fixed_array_string([N] T, output_constants, write_null_pointers, formatted);
+write_output :: (object: [$N] $T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
+    #insert #run get_fixed_array_string([N] T, output_constants, write_null_members, formatted);
 }
 
-write_output :: (object: *$T, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: (object: *$T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     if object {
-        write_output(<< object, builder, output_constants, write_null_pointers, formatted);
+        write_output(<< object, builder, output_constants, write_null_members, formatted);
     } else {
         append(builder, "null");
     }
 }
 
-write_output :: inline (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) #modify modify_require_enum(T) {
+write_output :: inline (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) #modify modify_require_enum(T) {
     EnumType :: #run (t: Type) -> Type {
         enum_info := (cast(*Type_Info_Enum) T).internal_type;
         if enum_info.signed && enum_info.runtime_size == 1 {
@@ -63,50 +61,50 @@ write_output :: inline (object: $T, builder: *String_Builder, $output_constants:
         }
     }(T);
 
-    write_output(cast(EnumType) object, builder, output_constants, write_null_pointers, formatted);
+    write_output(cast(EnumType) object, builder, output_constants, write_null_members, formatted);
 }
 
-write_output :: inline (object: float32, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: float32, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatFloat(object));
 }
 
-write_output :: inline (object: float64, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: float64, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatFloat(object));
 }
 
-write_output :: inline (object: u8, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: u8, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: u16, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: u16, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: u32, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: u32, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: u64, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: u64, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: s8, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: s8, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: s16, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: s16, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: s32, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: s32, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: s64, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: s64, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     print_to_builder(builder, "%", formatInt(object));
 }
 
-write_output :: inline (object: bool, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: bool, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     if object {
         append(builder, "true");
     } else {
@@ -114,16 +112,14 @@ write_output :: inline (object: bool, builder: *String_Builder, $output_constant
     }
 }
 
-write_output :: inline (object: string, builder: *String_Builder, $output_constants: bool, $write_null_pointers: bool, $formatted: bool) {
+write_output :: inline (object: string, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     append(builder, "\"");
     append(builder, object);
     append(builder, "\"");
 }
 
-get_fixed_array_string :: (t: Type, output_constants: bool, write_null_pointers: bool, formatted: bool) -> string {
+get_fixed_array_string :: (t: Type, output_constants: bool, write_null_members: bool, formatted: bool) -> string {
     array_info := cast(*Type_Info_Array) t;
-
-    // TODO check write_null_pointers here
     
     insert: String_Builder;
 
@@ -132,7 +128,11 @@ get_fixed_array_string :: (t: Type, output_constants: bool, write_null_pointers:
     for i: 0..array_info.array_count - 1 {
         append(*insert, "write_output(object[");
         append(*insert, tprint("%", i));
-        append(*insert, "], builder, output_constants, write_null_pointers, formatted);\n");
+        append(*insert, "], builder, output_constants, write_null_members, formatted);\n");
+
+        if i < array_info.array_count - 1 {
+            append(*insert, "append(builder, \",\");\n");
+        }
     }
 
     append(*insert, "append(builder, \"]\");\n");
@@ -140,7 +140,7 @@ get_fixed_array_string :: (t: Type, output_constants: bool, write_null_pointers:
     return builder_to_string(*insert);
 }
 
-get_struct_string :: (t: Type, output_constants: bool, write_null_pointers: bool, formatted: bool) -> string {
+get_struct_string :: (t: Type, output_constants: bool, write_null_members: bool, formatted: bool) -> string {
     struct_info := cast(*Type_Info_Struct) t;
 
     insert: String_Builder;
@@ -160,7 +160,7 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_pointers: bool
         member_count += 1;
     }
 
-    if !write_null_pointers {
+    if !write_null_members {
         append(*insert, "wrote := false;\n");
     }
     
@@ -177,7 +177,7 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_pointers: bool
         member_name := member.name;
         json_name := get_json_name(member_name, member.notes);
 
-        should_check_pointer := member.type.type == .POINTER && !write_null_pointers;
+        should_check_pointer := member.type.type == .POINTER && !write_null_members;
 
         if should_check_pointer {
             append(*insert, "if object.");
@@ -185,7 +185,7 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_pointers: bool
             append(*insert, " {\n");
         }
 
-        if !write_null_pointers {
+        if !write_null_members {
             // if youre not writing null pointers we have to check writes and add commas before because there's no guarantee where you end
             if index > 0 {
                 append(*insert, "if wrote {\n");
@@ -199,9 +199,9 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_pointers: bool
         append(*insert, "\\\":\");\n");
         append(*insert, "write_output(object.");
         append(*insert, member_name);
-        append(*insert, ", builder, output_constants, write_null_pointers, formatted);\n");
+        append(*insert, ", builder, output_constants, write_null_members, formatted);\n");
 
-        if !write_null_pointers {
+        if !write_null_members {
             append(*insert, "wrote = true;\n");
         }
 
@@ -209,7 +209,7 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_pointers: bool
             append(*insert, "}\n");
         }
 
-        if write_null_pointers {
+        if write_null_members {
             if index < member_count - 1 {
                 append(*insert, "append(builder, \",\");\n");
             }

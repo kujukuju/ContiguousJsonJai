@@ -160,6 +160,26 @@ main :: () {
             print("Unsuccessful.\n");
         }
     }
+    {
+        JSON_STRING :: #string DONE
+        [-237462374673276894279832749832423479823246327846, null]
+        DONE
+
+        JsonType :: [2] *int;
+
+        print("Parsing 5.\n");
+        result, memory, success := json_parse(JSON_STRING, JsonType);
+        defer free(memory);
+        if success {
+            print_anything(result);
+
+            json := json_write(result);
+            defer free(json);
+            print_anything(json);
+        } else {
+            print("Unsuccessful.\n");
+        }
+    }
 }
 
 print_anything :: (value: $T, name: string = "", depth: int = 0) {
@@ -210,6 +230,10 @@ print_anything :: (value: $T, name: string = "", depth: int = 0) {
 
         return builder_to_string(*builder);
     }(T);
+
+    if depth == 0 {
+        print("\n");
+    }
 }
 
 #import "ContiguousJsonJai"(VALIDATE=true);
