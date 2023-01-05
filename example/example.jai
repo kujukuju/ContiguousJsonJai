@@ -180,6 +180,49 @@ main :: () {
             print("Unsuccessful.\n");
         }
     }
+    {
+        JSON_STRING :: #string DONE
+        ["x"]]
+        DONE
+
+        JsonType :: [..] string;
+
+        print("Parsing 6.\n");
+        result, memory, success := json_parse(JSON_STRING, JsonType);
+        defer free(memory);
+        if success {
+            print_anything(result);
+
+            json := json_write(result);
+            defer free(json);
+            print_anything(json);
+        } else {
+            print("Unsuccessful.\n");
+        }
+    }
+    {
+        JSON_STRING :: #string DONE
+        [1 true]
+        DONE
+
+        JsonType :: [..] struct {
+            v: int;
+            b: bool;
+        };
+
+        print("Parsing 7.\n");
+        result, memory, success := json_parse(JSON_STRING, JsonType);
+        defer free(memory);
+        if success {
+            print_anything(result);
+
+            json := json_write(result);
+            defer free(json);
+            print_anything(json);
+        } else {
+            print("Unsuccessful.\n");
+        }
+    }
 }
 
 print_anything :: (value: $T, name: string = "", depth: int = 0) {
@@ -224,7 +267,7 @@ print_anything :: (value: $T, name: string = "", depth: int = 0) {
             }
         } else if struct_info.type == .ARRAY {
             append(*builder, "for i: 0..value.count - 1 {\n");
-            append(*builder, "print_anything(value[i], tprint(\"value[%]\", i), depth + 1);\n");
+            append(*builder, "print_anything(value.data[i], tprint(\"value[%]\", i), depth + 1);\n");
             append(*builder, "};\n");
         }
 
@@ -236,5 +279,6 @@ print_anything :: (value: $T, name: string = "", depth: int = 0) {
     }
 }
 
-#import "ContiguousJsonJai"(VALIDATE=true);
+#import "ContiguousJsonJai"(ASSERT=false);
 #import "Basic";
+JASON :: #import "jason";

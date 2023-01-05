@@ -2,6 +2,10 @@
 
 This library reads through the json string only in the forward direction and fills in your struct type allocating only in contiguous memory.
 
+So far in testing library seems very fast so.
+
+To mark an element as optional just make it a pointer in your struct.
+
 Supports:
   * structs
   * resizable arrays
@@ -11,6 +15,7 @@ Supports:
   * all float types
   * all enum types
   * booleans
+  * pointer and null types
   * in place strings `points to the string in the json`
   * allocated strings `copies the string in the json`
   * optional values `creates a pointer in contiguous memory`
@@ -31,11 +36,11 @@ The benefit is memory allocations are very cheap, so it's reasonable to use poin
 
 Going to try more test cases but it's annoying because I still have to make a struct for each case.
 
-Going to finish the writer which should be infinitely easier than the reader.
-
 ---
 
 ### Setup
 
 I fixed this line in `string_to_int` to get the code working properly:
 `multiplier := 1;` -> `multiplier: T = 1;`
+
+I reported this bug so should be fixed soon.

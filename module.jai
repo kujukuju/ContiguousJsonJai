@@ -1,4 +1,4 @@
-#module_parameters(ASM := true, VALIDATE := false);
+#module_parameters(ASM := true, ASSERT := false);
 
 get_json_name :: (member_name: string, notes: [] string) -> string {
     for note: notes {

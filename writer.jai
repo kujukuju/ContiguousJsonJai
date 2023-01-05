@@ -108,7 +108,7 @@ write_output :: inline (object: bool, builder: *String_Builder, $output_constant
     if object {
         append(builder, "true");
     } else {
-        append(builder, "true");
+        append(builder, "false");
     }
 }
 
