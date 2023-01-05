@@ -24,7 +24,7 @@ json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, 
     success: bool;
 
     #if VALIDATE {
-        assert(content.data[index] == #char "{", "Missing left bracket.");
+        assert(index < content.count && content.data[index] == #char "{", "Missing left bracket.");
     }
     index = trim_right(content, index + 1);
 
@@ -36,7 +36,7 @@ json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, 
         // print("String is: %\n", cur);
 
         #if VALIDATE {
-            assert(content.data[index] == #char "\"", "Missing quote.");
+            assert(index < content.count && content.data[index] == #char "\"", "Missing quote.");
         }
         index += 1;
 
@@ -47,7 +47,7 @@ json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, 
 
         index = trim_right(content, index + name.count + 1);
         #if VALIDATE {
-            assert(content.data[index] == #char ":", "Missing colon.");
+            assert(index < content.count && content.data[index] == #char ":", "Missing colon.");
         }
 
         // now we're starting on the inner value
@@ -56,9 +56,9 @@ json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, 
 
         index = trim_right(content, index);
         #if VALIDATE {
-            assert(content.data[index] == #char "," || content.data[index] == #char "}", "Missing comma or right bracket.");
+            assert(index < content.count && content.data[index] == #char "," || content.data[index] == #char "}", "Missing comma or right bracket.");
         }
-        if content.data[index] == #char "}" {
+        if index < content.count && content.data[index] == #char "}" {
             return index + 1, true;
         }
 
@@ -73,11 +73,11 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
     success: bool;
 
     #if VALIDATE {
-        assert(content.data[index] == #char "[", "Missing left hard bracket.");
+        assert(index < content.count && content.data[index] == #char "[", "Missing left hard bracket.");
     }
     index = trim_right(content, index + 1);
 
-    if content.data[index] == #char "]" {
+    if index < content.count && content.data[index] == #char "]" {
         return index + 1, true;
     }
 
@@ -99,9 +99,9 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
         index = trim_right(content, index);
 
         #if VALIDATE {
-            assert(content.data[index] == #char "," || content.data[index] == #char "]", "Missing comma or right hard bracket.");
+            assert(index < content.count && content.data[index] == #char "," || content.data[index] == #char "]", "Missing comma or right hard bracket.");
         }
-        if content.data[index] == #char "]" {
+        if index < content.count && content.data[index] == #char "]" {
             return index + 1, true;
         }
         
@@ -115,7 +115,7 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
     success: bool;
 
     #if VALIDATE {
-        assert(content.data[index] == #char "[", "Missing left hard bracket.");
+        assert(index < content.count && content.data[index] == #char "[", "Missing left hard bracket.");
     }
     index = trim_right(content, index + 1);
 
@@ -136,9 +136,9 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
         index = trim_right(content, index);
 
         #if VALIDATE {
-            assert(content.data[index] == #char "," || content.data[index] == #char "]", "Missing comma or right hard bracket.");
+            assert(index < content.count && content.data[index] == #char "," || content.data[index] == #char "]", "Missing comma or right hard bracket.");
         }
-        if content.data[index] == #char "]" {
+        if index < content.count && content.data[index] == #char "]" {
             return index + 1, true;
         }
         
@@ -190,13 +190,13 @@ json_parse_into :: inline (content: string, index: int, result: *$T, memory: *[.
 
 json_parse_into :: inline (content: string, index: int, result: *float32, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_float_char(content.data[index]), "F32 has invalid characters.");
+        assert(index < content.count && is_float_char(content.data[index]), "F32 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_float_char(content.data[index]) {
+    while index < content.count && is_float_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -212,13 +212,13 @@ json_parse_into :: inline (content: string, index: int, result: *float32, memory
 
 json_parse_into :: inline (content: string, index: int, result: *float64, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_float_char(content.data[index]), "F64 has invalid characters.");
+        assert(index < content.count && is_float_char(content.data[index]), "F64 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_float_char(content.data[index]) {
+    while index < content.count && is_float_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -234,13 +234,13 @@ json_parse_into :: inline (content: string, index: int, result: *float64, memory
 
 json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_unsigned_int_char(content.data[index]), "U8 has invalid characters.");
+        assert(index < content.count && is_unsigned_int_char(content.data[index]), "U8 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_unsigned_int_char(content.data[index]) {
+    while index < content.count && is_unsigned_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -256,13 +256,13 @@ json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[.
 
 json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_unsigned_int_char(content.data[index]), "U16 has invalid characters.");
+        assert(index < content.count && is_unsigned_int_char(content.data[index]), "U16 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_unsigned_int_char(content.data[index]) {
+    while index < content.count && is_unsigned_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -278,13 +278,13 @@ json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[
 
 json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_unsigned_int_char(content.data[index]), "U32 has invalid characters.");
+        assert(index < content.count && is_unsigned_int_char(content.data[index]), "U32 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_unsigned_int_char(content.data[index]) {
+    while index < content.count && is_unsigned_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -301,13 +301,13 @@ json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[
 
 json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_unsigned_int_char(content.data[index]), "U64 has invalid characters.");
+        assert(index < content.count && is_unsigned_int_char(content.data[index]), "U64 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_unsigned_int_char(content.data[index]) {
+    while index < content.count && is_unsigned_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -323,13 +323,13 @@ json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[
 
 json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_signed_int_char(content.data[index]), "S8 has invalid characters.");
+        assert(index < content.count && is_signed_int_char(content.data[index]), "S8 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_signed_int_char(content.data[index]) {
+    while index < content.count && is_signed_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -345,13 +345,13 @@ json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[.
 
 json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_signed_int_char(content.data[index]), "S16 has invalid characters.");
+        assert(index < content.count && is_signed_int_char(content.data[index]), "S16 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_signed_int_char(content.data[index]) {
+    while index < content.count && is_signed_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -367,13 +367,13 @@ json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[
 
 json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_signed_int_char(content.data[index]), "S32 has invalid characters.");
+        assert(index < content.count && is_signed_int_char(content.data[index]), "S32 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_signed_int_char(content.data[index]) {
+    while index < content.count && is_signed_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -389,13 +389,13 @@ json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[
 
 json_parse_into :: inline (content: string, index: int, result: *s64, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(is_signed_int_char(content.data[index]), "S64 has invalid characters.");
+        assert(index < content.count && is_signed_int_char(content.data[index]), "S64 has invalid characters.");
     }
 
     first_index := index;
     value_string: string = ---;
     value_string.data = content.data + index;
-    while is_signed_int_char(content.data[index]) {
+    while index < content.count && is_signed_int_char(content.data[index]) {
         index += 1;
     }
     value_string.count = index - first_index;
@@ -429,7 +429,7 @@ json_parse_into :: inline (content: string, index: int, result: *bool, memory: *
 
 json_parse_into :: inline (content: string, index: int, result: *string, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     #if VALIDATE {
-        assert(content.data[index] == #char "\"", "Missing quotation.");
+        assert(index < content.count && content.data[index] == #char "\"", "Missing quotation.");
     }
 
     index += 1;
@@ -493,7 +493,7 @@ allocate :: (memory: *[..] u8, bytes: int, $keep_strings_in_place: bool, $T: Typ
 
 trim_right :: inline (content: string, index: int) -> int {
     char := content.data[index];
-    while char == #char " " || char == #char "\t" || char == #char "\n" || char == #char "\r" {
+    while index < content.count && (char == #char " " || char == #char "\t" || char == #char "\n" || char == #char "\r") {
         index += 1;
         char = content.data[index];
     }
@@ -585,6 +585,7 @@ is_null :: inline (content: string, index: int) -> bool {
 }
 
 get_string_until_closing_quote :: inline (content: string, index: int) -> string, bool {
+    // this method inherently can't be called until we find the first quote, so we don't have to worry about the -1 index
     name: string = ---;
     name.data = content.data + index;
     for lookahead: index..content.count - 1 {
@@ -598,6 +599,7 @@ get_string_until_closing_quote :: inline (content: string, index: int) -> string
 }
 
 get_array_entries_until_closing_bracket :: inline (content: string, index: int) -> int {
+    // this method inherently can't be called until we find the first array bracket, so we don't have to worry about the -1 index
     opened_array_count: int;
     opened_object_count: int;
     opened_string: bool;
