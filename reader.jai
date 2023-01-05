@@ -69,32 +69,6 @@ json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, 
     return index, false;
 }
 
-json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_enum(T) {
-    EnumType :: #run (t: Type) -> Type {
-        enum_info := (cast(*Type_Info_Enum) T).internal_type;
-        if enum_info.signed && enum_info.runtime_size == 1 {
-            return s8;
-        } else if enum_info.signed && enum_info.runtime_size == 2 {
-            return s16;
-        } else if enum_info.signed && enum_info.runtime_size == 4 {
-            return s32;
-        } else if enum_info.signed && enum_info.runtime_size == 8 {
-            return s64;
-        } else if !enum_info.signed && enum_info.runtime_size == 1 {
-            return u8;
-        } else if !enum_info.signed && enum_info.runtime_size == 2 {
-            return u16;
-        } else if !enum_info.signed && enum_info.runtime_size == 4 {
-            return u32;
-        } else {
-            return u64;
-        }
-    }(T);
-
-    index, success := json_parse_into(content, index, cast(*EnumType) result, memory, relative, keep_strings_in_place);
-    return index, success;
-}
-
 json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
     success: bool;
 
@@ -182,6 +156,32 @@ json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8,
     success: bool;
     index, success = json_parse_into(content, index, entry, memory, true, keep_strings_in_place);
 
+    return index, success;
+}
+
+json_parse_into :: inline (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_enum(T) {
+    EnumType :: #run (t: Type) -> Type {
+        enum_info := (cast(*Type_Info_Enum) T).internal_type;
+        if enum_info.signed && enum_info.runtime_size == 1 {
+            return s8;
+        } else if enum_info.signed && enum_info.runtime_size == 2 {
+            return s16;
+        } else if enum_info.signed && enum_info.runtime_size == 4 {
+            return s32;
+        } else if enum_info.signed && enum_info.runtime_size == 8 {
+            return s64;
+        } else if !enum_info.signed && enum_info.runtime_size == 1 {
+            return u8;
+        } else if !enum_info.signed && enum_info.runtime_size == 2 {
+            return u16;
+        } else if !enum_info.signed && enum_info.runtime_size == 4 {
+            return u32;
+        } else {
+            return u64;
+        }
+    }(T);
+
+    index, success := json_parse_into(content, index, cast(*EnumType) result, memory, relative, keep_strings_in_place);
     return index, success;
 }
 
@@ -637,14 +637,7 @@ get_name_to_parse_string :: (t: Type) -> string {
         }
 
         member_name := member.name;
-        json_name := member.name;
-        for note: member.notes {
-            if begins_with_nocase(note, "json(") && ends_with_nocase(note, ")") {
-                json_name.data = note.data + 5;
-                json_name.count = note.count - 6;
-                break;
-            }
-        }
+        json_name := get_json_name(member.name, member.notes);
 
         // TODO would generating a switch statement be better performance? need to test
         append(*builder, "if name == \"");
@@ -749,16 +742,6 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
     }
 
     return get_child(t, top_level_name, keep_strings_in_place);
-}
-
-modify_require_struct :: (t: Type) #expand {
-    `info := cast(*Type_Info) t;
-    `return info.type == .STRUCT;
-}
-
-modify_require_enum :: (t: Type) #expand {
-    `info := cast(*Type_Info) t;
-    `return info.type == .ENUM;
 }
 
 #import "Basic";
