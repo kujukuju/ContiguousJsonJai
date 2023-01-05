@@ -65,11 +65,15 @@ write_output :: inline (object: $T, builder: *String_Builder, $output_constants:
 }
 
 write_output :: inline (object: float32, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
-    print_to_builder(builder, "%", formatFloat(object));
+    // 16 16 seems to be about as close to javascript as I can get using this formatter... width seems to do basically nothing
+    // to match javascript it would need a total_width value of 18 or smoething
+    print_to_builder(builder, "%", formatFloat(object, width = 16, trailing_width = 16));
 }
 
 write_output :: inline (object: float64, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
-    print_to_builder(builder, "%", formatFloat(object));
+    // 16 16 seems to be about as close to javascript as I can get using this formatter... width seems to do basically nothing
+    // to match javascript it would need a total_width value of 18 or smoething
+    print_to_builder(builder, "%", formatFloat(object, width = 16, trailing_width = 16));
 }
 
 write_output :: inline (object: u8, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {

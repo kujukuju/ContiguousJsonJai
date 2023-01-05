@@ -86,11 +86,11 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
     // ill leave allocated as 0 since its not allocating into the array, I guess
     required_bytes := entry_count * size_of(T);
     offset, allocated := allocate(memory, required_bytes, keep_strings_in_place, T);
-    absolute(result, memory, relative).data = offset;
-    absolute(result, memory, relative).count = entry_count;
+    absolute(result, memory.data, relative).data = offset;
+    absolute(result, memory.data, relative).count = entry_count;
 
-    for entry_index: 0..absolute(result, memory, relative).count - 1 {
-        entry := absolute(result, memory, relative).data + entry_index;
+    for entry_index: 0..absolute(result, memory.data, relative).count - 1 {
+        entry := absolute(result, memory.data, relative).data + entry_index;
 
         index, success = json_parse_into(content, index, entry, memory, true, keep_strings_in_place);
         if !success {
@@ -127,7 +127,7 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
     // ill leave allocated as 0 since its not allocating into the array, I guess
 
     for entry_index: 0..N - 1 {
-        entry := absolute(result, memory, relative).data + entry_index;
+        entry := absolute(result, memory.data, relative).data + entry_index;
 
         index, success = json_parse_into(content, index, entry, memory, relative, keep_strings_in_place);
         if !success {
@@ -153,7 +153,7 @@ json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8,
     if is_null(content, index) {
         return index + 4, true;
     } else {
-        << absolute(result, memory, relative) = offset;
+        << absolute(result, memory.data, relative) = offset;
         entry: *T = offset;
 
         success: bool;
@@ -203,7 +203,7 @@ json_parse_into :: inline (content: string, index: int, result: *float32, memory
 
     value, success := string_to_float(value_string);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -225,7 +225,7 @@ json_parse_into :: inline (content: string, index: int, result: *float64, memory
 
     value, success := string_to_float64(value_string);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -247,7 +247,7 @@ json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[.
 
     value, success := string_to_int(value_string, 10, u8);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -269,7 +269,7 @@ json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[
 
     value, success := string_to_int(value_string, 10, u16);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -292,7 +292,7 @@ json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[
 
     value, success := string_to_int(value_string, 10, u32);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -314,7 +314,7 @@ json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[
 
     value, success := string_to_int(value_string, 10, u64);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -336,7 +336,7 @@ json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[.
 
     value, success := string_to_int(value_string, 10, s8);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -358,7 +358,7 @@ json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[
 
     value, success := string_to_int(value_string, 10, s16);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -380,7 +380,7 @@ json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[
 
     value, success := string_to_int(value_string, 10, s32);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -402,7 +402,7 @@ json_parse_into :: inline (content: string, index: int, result: *s64, memory: *[
 
     value, success := string_to_int(value_string, 10, s64);
     if success {
-        << absolute(result, memory, relative) = value;
+        << absolute(result, memory.data, relative) = value;
         return index, true;
     }
 
@@ -415,10 +415,10 @@ json_parse_into :: inline (content: string, index: int, result: *bool, memory: *
     }
 
     if is_true(content, index) {
-        << absolute(result, memory, relative) = true;
+        << absolute(result, memory.data, relative) = true;
         index += 4;
     } else if is_false(content, index) {
-        << absolute(result, memory, relative) = false;
+        << absolute(result, memory.data, relative) = false;
         index += 5;
     } else {
         return index, false;
@@ -440,22 +440,22 @@ json_parse_into :: inline (content: string, index: int, result: *string, memory:
     index += value.count + 1;
 
     #if keep_strings_in_place {
-        absolute(result, memory, relative).data = value.data;
-        absolute(result, memory, relative).count = value.count;
+        absolute(result, memory.data, relative).data = value.data;
+        absolute(result, memory.data, relative).count = value.count;
     } else {
         offset, allocated := allocate(memory, value.count, keep_strings_in_place, u8);
-        absolute(result, memory, relative).data = offset;
-        absolute(result, memory, relative).count = value.count;
+        absolute(result, memory.data, relative).data = offset;
+        absolute(result, memory.data, relative).count = value.count;
         memcpy(allocated, value.data, value.count);
     }
 
     return index, true;
 }
 
-absolute :: inline (pointer: *$T, memory: *[..] u8, relative: bool) -> *T {
+absolute :: inline (pointer: *$T, memory: *u8, relative: bool) -> *T {
     if relative {
         value := cast(int) pointer;
-        return cast(*T) (memory.data + value - 1);
+        return cast(*T) (memory + value - 1);
     } else {
         return pointer;
     }
@@ -482,7 +482,9 @@ allocate :: (memory: *[..] u8, bytes: int, $keep_strings_in_place: bool, $T: Typ
         }
     }
 
+    current_allocated := memory.allocated;
     array_reserve(memory, allocate_bytes);
+    memset(memory.data + current_allocated, 0, memory.allocated - current_allocated);
 
     relative := memory.count + 1;
     allocated := memory.data + memory.count;
