@@ -12,7 +12,7 @@ This library approximates floating point width accuracy when compared to javascr
 
 Parsing a GLTF blob in contiguous memory mode: `0.1195` milliseconds.
 Parsing a GLTF blob in normal (non-contiguous) memory mode: `0.1210` milliseconds.
-Parsing a GLTF blob in javascript (node): `0.118` milliseconds.
+Parsing a GLTF blob in javascript (node): `0.1180` milliseconds.
 Other C style parsers I tested on the same GLTF blob: ~`0.2500` milliseconds.
 
 ### Support

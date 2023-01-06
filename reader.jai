@@ -814,7 +814,7 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
 
             // check if there is anything to do for the array element type, and if so loop it
             if get_child(<< cast(*Type) *array_info.element_type, "", keep_strings_in_place) {
-                iterator_name := tprint("%_iterator", replace(top_level_name, ".", "_"));
+                iterator_name := tprint("%_iterator", replace(replace(replace(top_level_name, ".", "_"), "[", "_"), "]", "_"));
                 append(*builder, "for ");
                 append(*builder, iterator_name);
                 append(*builder, ": 0..");
