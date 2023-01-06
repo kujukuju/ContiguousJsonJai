@@ -34,6 +34,7 @@ Supports:
 
 Does not support:
   * unknown/generic types
+  * unicode, I think... because any value of `"` except `\"` will escape a quote
 
 Any memory that needs to be allocated gets allocated into a contiguous block of memory that can be freed in a single call.
 

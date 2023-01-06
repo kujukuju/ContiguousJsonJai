@@ -620,6 +620,7 @@ is_unsigned_int_char :: inline (char: u8) -> bool {
 is_float_char :: inline (char: u8) -> bool {
     valid := false;
     valid = valid || char == #char "-";
+    valid = valid || char == #char "+";
     valid = valid || char == #char ".";
     valid = valid || char == #char "0";
     valid = valid || char == #char "1";
@@ -631,6 +632,8 @@ is_float_char :: inline (char: u8) -> bool {
     valid = valid || char == #char "7";
     valid = valid || char == #char "8";
     valid = valid || char == #char "9";
+    valid = valid || char == #char "e";
+    valid = valid || char == #char "E";
     return valid;
 }
 
