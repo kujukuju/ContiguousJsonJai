@@ -2,7 +2,10 @@
 
 This library reads through the json string only in the forward direction and fills in your struct type allocating only in contiguous memory.
 
-So far in testing library seems very fast so.
+Parsing a GLTF blob in contiguous memory mode: `0.1195` milliseconds.
+Parsing a GLTF blob in normal (non-contiguous) memory mode: `0.1210` milliseconds.
+Parsing a GLTF blob in javascript: `0.0890` milliseconds.
+Other C style parsers I tested on the same GLTF blob: ~`0.2500` milliseconds.
 
 To mark an element as optional just make it a pointer in your struct.
 
@@ -22,7 +25,7 @@ Supports:
   * renaming values `@json(name)`
 
 Does not support:
-  * undefined/generic types
+  * unknown/generic types
 
 Any memory that needs to be allocated gets allocated into a contiguous block of memory that can be freed in a single call.
 

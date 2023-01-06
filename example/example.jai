@@ -16,10 +16,13 @@ main :: () {
                 
                 print("Testing %.\n\n");
 
-                result, memory, success := json_parse(JSON_STRING, JsonType);
+                start := get_time() * 1000;
+                result, memory, success := json_parse(JSON_STRING, JsonType, contiguous_memory = false);
+                end := get_time() * 1000;
                 defer free(memory);
                 if success {
-                    print("Succeeded in parsing json.\n\n");
+                    print("Succeeded in parsing json.\n");
+                    print("Took %% milliseconds.\n\n", end - start);
 
                     print("Result:\n");
                     print_anything(result);

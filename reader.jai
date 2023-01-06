@@ -1,9 +1,9 @@
 
-json_parse :: (content: string, $T: Type, $keep_strings_in_place: bool = false) -> T, *u8, bool {
+json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep_strings_in_place: bool = false) -> T, *u8, bool {
     index := trim_right(content, 0);
     result: T;
     memory: [..] u8;
-    if json_parse_into(content, index, *result, *memory, false, keep_strings_in_place) {
+    if json_parse_into(content, index, *result, *memory, false, contiguous_memory, keep_strings_in_place) {
         if memory.data {
             pointer_offset := cast(int) memory.data - 1;
 
@@ -20,7 +20,7 @@ json_parse :: (content: string, $T: Type, $keep_strings_in_place: bool = false) 
 
 // expected that these functions get provided the next non-whitespace index, but are allowed to return a whitespace index
 
-json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_struct(T) {
+json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_struct(T) {
     success: bool;
 
     #if ASSERT {
@@ -69,7 +69,7 @@ json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, 
     return index, false;
 }
 
-json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     success: bool;
 
     #if ASSERT {
@@ -83,16 +83,31 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
 
     entry_count := get_array_entries_until_closing_bracket(content, index);
 
+    #if contiguous_memory {
     // ill leave allocated as 0 since its not allocating into the array, I guess
-    required_bytes := entry_count * size_of(T);
-    offset, allocated := allocate(memory, required_bytes, keep_strings_in_place, T);
-    absolute(result, memory.data, relative).data = offset;
-    absolute(result, memory.data, relative).count = entry_count;
+        required_bytes := entry_count * size_of(T);
+        offset, allocated := allocate(memory, required_bytes, keep_strings_in_place, T);
+        absolute(result, memory.data, relative).data = offset;
+        absolute(result, memory.data, relative).count = entry_count;
+    } else {
+        arr: [..] T;
+        array_resize(*arr, entry_count);
+        << result = arr;
+    }
 
-    for entry_index: 0..absolute(result, memory.data, relative).count - 1 {
-        entry := absolute(result, memory.data, relative).data + entry_index;
+    #if contiguous_memory {
+        result_count := absolute(result, memory.data, relative).count;
+    } else {
+        result_count := result.count;
+    }
+    for entry_index: 0..result_count - 1 {
+        #if contiguous_memory {
+            entry := absolute(result, memory.data, relative).data + entry_index;
+        }  else {
+            entry := result.data + entry_index;
+        }
 
-        index, success = json_parse_into(content, index, entry, memory, true, keep_strings_in_place);
+        index, success = json_parse_into(content, index, entry, memory, true, contiguous_memory, keep_strings_in_place);
         if !success {
             return index, false;
         }
@@ -111,7 +126,7 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
     return index, false;
 }
 
-json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     success: bool;
 
     #if ASSERT {
@@ -127,9 +142,13 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
     // ill leave allocated as 0 since its not allocating into the array, I guess
 
     for entry_index: 0..N - 1 {
-        entry := absolute(result, memory.data, relative).data + entry_index;
+        #if contiguous_memory {
+            entry := absolute(result, memory.data, relative).data + entry_index;
+        } else {
+            entry := result.data + entry_index;
+        }
 
-        index, success = json_parse_into(content, index, entry, memory, relative, keep_strings_in_place);
+        index, success = json_parse_into(content, index, entry, memory, relative, contiguous_memory, keep_strings_in_place);
         if !success {
             return index, false;
         }
@@ -148,21 +167,30 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
     return index, false;
 }
 
-json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
-    offset := allocate(memory, #run size_of(T), keep_strings_in_place, T);
-    if is_null(content, index) {
-        return index + 4, true;
+json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
+    #if contiguous_memory {
+        if is_null(content, index) {
+            return index + 4, true;
+        } else {
+            offset := allocate(memory, #run size_of(T), keep_strings_in_place, T);
+            << absolute(result, memory.data, relative) = offset;
+            entry: *T = offset;
+
+            success: bool;
+            index, success = json_parse_into(content, index, entry, memory, true, contiguous_memory, keep_strings_in_place);
+            return index, success;
+        }
     } else {
-        << absolute(result, memory.data, relative) = offset;
-        entry: *T = offset;
+        entry := New(T);
+        << result = entry;
 
         success: bool;
-        index, success = json_parse_into(content, index, entry, memory, true, keep_strings_in_place);
+        index, success = json_parse_into(content, index, entry, memory, true, contiguous_memory, keep_strings_in_place);
         return index, success;
     }
 }
 
-json_parse_into :: inline (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_enum(T) {
+json_parse_into :: inline (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_enum(T) {
     EnumType :: #run (t: Type) -> Type {
         enum_info := (cast(*Type_Info_Enum) T).internal_type;
         if enum_info.signed && enum_info.runtime_size == 1 {
@@ -184,11 +212,11 @@ json_parse_into :: inline (content: string, index: int, result: *$T, memory: *[.
         }
     }(T);
 
-    index, success := json_parse_into(content, index, cast(*EnumType) result, memory, relative, keep_strings_in_place);
+    index, success := json_parse_into(content, index, cast(*EnumType) result, memory, relative, contiguous_memory, keep_strings_in_place);
     return index, success;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *float32, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *float32, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_float_char(content.data[index]), "F32 has invalid characters.");
     }
@@ -203,14 +231,18 @@ json_parse_into :: inline (content: string, index: int, result: *float32, memory
 
     value, success := string_to_float(value_string);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *float64, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *float64, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_float_char(content.data[index]), "F64 has invalid characters.");
     }
@@ -225,14 +257,18 @@ json_parse_into :: inline (content: string, index: int, result: *float64, memory
 
     value, success := string_to_float64(value_string);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_unsigned_int_char(content.data[index]), "U8 has invalid characters.");
     }
@@ -247,14 +283,18 @@ json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[.
 
     value, success := string_to_int(value_string, 10, u8);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_unsigned_int_char(content.data[index]), "U16 has invalid characters.");
     }
@@ -269,14 +309,18 @@ json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[
 
     value, success := string_to_int(value_string, 10, u16);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_unsigned_int_char(content.data[index]), "U32 has invalid characters.");
     }
@@ -292,14 +336,18 @@ json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[
 
     value, success := string_to_int(value_string, 10, u32);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_unsigned_int_char(content.data[index]), "U64 has invalid characters.");
     }
@@ -314,14 +362,18 @@ json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[
 
     value, success := string_to_int(value_string, 10, u64);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_signed_int_char(content.data[index]), "S8 has invalid characters.");
     }
@@ -336,14 +388,18 @@ json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[.
 
     value, success := string_to_int(value_string, 10, s8);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_signed_int_char(content.data[index]), "S16 has invalid characters.");
     }
@@ -358,14 +414,18 @@ json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[
 
     value, success := string_to_int(value_string, 10, s16);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_signed_int_char(content.data[index]), "S32 has invalid characters.");
     }
@@ -380,14 +440,18 @@ json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[
 
     value, success := string_to_int(value_string, 10, s32);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *s64, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *s64, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && is_signed_int_char(content.data[index]), "S64 has invalid characters.");
     }
@@ -402,23 +466,35 @@ json_parse_into :: inline (content: string, index: int, result: *s64, memory: *[
 
     value, success := string_to_int(value_string, 10, s64);
     if success {
-        << absolute(result, memory.data, relative) = value;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = value;
+        } else {
+            << result = value;
+        }
         return index, true;
     }
 
     return index, false;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *bool, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *bool, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(is_true_or_false(content, index), "Bool has invalid characters.");
     }
 
     if is_true(content, index) {
-        << absolute(result, memory.data, relative) = true;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = true;
+        } else {
+            << result = true;
+        }
         index += 4;
     } else if is_false(content, index) {
-        << absolute(result, memory.data, relative) = false;
+        #if contiguous_memory {
+            << absolute(result, memory.data, relative) = false;
+        } else {
+            << result = false;
+        }
         index += 5;
     } else {
         return index, false;
@@ -427,7 +503,7 @@ json_parse_into :: inline (content: string, index: int, result: *bool, memory: *
     return index, true;
 }
 
-json_parse_into :: inline (content: string, index: int, result: *string, memory: *[..] u8, relative: bool, $keep_strings_in_place: bool) -> int, bool {
+json_parse_into :: inline (content: string, index: int, result: *string, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
     #if ASSERT {
         assert(index < content.count && content.data[index] == #char "\"", "Missing quotation.");
     }
@@ -439,14 +515,23 @@ json_parse_into :: inline (content: string, index: int, result: *string, memory:
     }
     index += value.count + 1;
 
-    #if keep_strings_in_place {
-        absolute(result, memory.data, relative).data = value.data;
-        absolute(result, memory.data, relative).count = value.count;
+    #if contiguous_memory {
+        #if keep_strings_in_place {
+            absolute(result, memory.data, relative).data = value.data;
+            absolute(result, memory.data, relative).count = value.count;
+        } else {
+            offset, allocated := allocate(memory, value.count, keep_strings_in_place, u8);
+            absolute(result, memory.data, relative).data = offset;
+            absolute(result, memory.data, relative).count = value.count;
+            memcpy(allocated, value.data, value.count);
+        }
     } else {
-        offset, allocated := allocate(memory, value.count, keep_strings_in_place, u8);
-        absolute(result, memory.data, relative).data = offset;
-        absolute(result, memory.data, relative).count = value.count;
-        memcpy(allocated, value.data, value.count);
+        #if keep_strings_in_place {
+            result.data = value.data;
+            result.count = value.count;
+        } else {
+            << result = copy_string(value);
+        }
     }
 
     return index, true;
@@ -462,8 +547,6 @@ absolute :: inline (pointer: *$T, memory: *u8, relative: bool) -> *T {
 }
 
 allocate :: (memory: *[..] u8, bytes: int, $keep_strings_in_place: bool, $T: Type) -> *T, *T {
-    // we want to start at a relatively large value since updating all the pointers probably isn't good
-    // required_bytes := max(memory.count + bytes, 1024);
     required_bytes := memory.count + bytes;
     allocate_bytes: int = ---;
 
@@ -667,7 +750,7 @@ get_name_to_parse_string :: (t: Type) -> string {
         // cast(*InnerType) ((cast(*u8) result) + member.offset_in_bytes)
         append(*builder, "index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + ");
         append(*builder, tprint("%", member.offset_in_bytes));
-        append(*builder, "), memory, relative, keep_strings_in_place);\n");
+        append(*builder, "), memory, relative, contiguous_memory, keep_strings_in_place);\n");
         append(*builder, "if !success {\n");
         append(*builder, "return index, false;\n");
         append(*builder, "}\n");
