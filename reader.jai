@@ -4,10 +4,42 @@ json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep
     result: T;
     memory: [..] u8;
     if json_parse_into(content, index, *result, *memory, false, contiguous_memory, keep_strings_in_place) {
-        if memory.data {
-            pointer_offset := cast(int) memory.data - 1;
+        #if contiguous_memory {
+            if memory.data {
+                pointer_offset := cast(int) memory.data - 1;
 
-            #insert #run get_pointer_update_string(T, "result", keep_strings_in_place);
+                json_object_update_pointers :: (object: *JsonObject, pointer_offset: int) {
+                    if object.type == .Object {
+                        if object.object.entries.data {
+                            object.object.entries.data = xx ((cast(*u8) object.object.entries.data) + pointer_offset);
+                            for *entry: object.object.entries {
+                                #if !keep_strings_in_place {
+                                    if entry.name.data {
+                                        entry.name.data = xx ((cast(*u8) entry.name.data) + pointer_offset);
+                                    }
+                                }
+
+                                json_object_update_pointers(*entry.value, pointer_offset);
+                            }
+                        }
+                    } else if object.type == .Array {
+                        if object.array.entries.data {
+                            object.array.entries.data = xx ((cast(*u8) object.array.entries.data) + pointer_offset);
+                            for *entry: object.array.entries {
+                                json_object_update_pointers(entry, pointer_offset);
+                            }
+                        }
+                    } else if object.type == .String {
+                        #if !keep_strings_in_place {
+                            if object.str.data {
+                                object.str.data = xx ((cast(*u8) object.str.data) + pointer_offset);
+                            }
+                        }
+                    }
+                }
+
+                #insert #run get_pointer_update_string(T, "result", keep_strings_in_place);
+            }
         }
 
         return result, memory.data, true;
@@ -20,7 +52,206 @@ json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep
 
 // expected that these functions get provided the next non-whitespace index, but are allowed to return a whitespace index
 
-json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_struct(T) {
+json_parse_into :: (content: string, index: int, result: *JsonObject, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
+    union_offset :: #run get_member_offset(JsonObject, ""); // this gets the union
+    entry_value_offset :: #run get_member_offset(JsonObjectEntry, "value");
+
+    if index < content.count {
+        if content.data[index] == #char "{" {
+            #if contiguous_memory {
+                absolute(result, memory.data, relative).type = .Object;
+            } else {
+                result.type = .Object;
+            }
+
+            index = trim_right(content, index + 1);
+
+            // check for immediate close
+            if index < content.count && content.data[index] == #char "}" {
+                return index + 1, true;
+            }
+
+            object_entries, success := get_object_entries_until_closing_bracket(content, index);
+            if !success {
+                return index, false;
+            }
+
+            #if contiguous_memory {
+            // ill leave allocated as 0 since its not allocating into the array, I guess
+                required_bytes := object_entries * size_of(JsonObjectEntry);
+                offset, allocated := allocate(memory, required_bytes, JsonObjectEntry, initialize = true, resizable_array = true);
+                absolute(result, memory.data, relative).object.entries.data = offset;
+                absolute(result, memory.data, relative).object.entries.count = object_entries;
+            } else {
+                arr: [..] JsonObjectEntry;
+                array_resize(*arr, object_entries);
+                result.object.entries = arr;
+            }
+
+            // skip the next quote
+            entry_index := 0;
+            while index < content.count && entry_index < object_entries {
+                #if ASSERT {
+                    assert(index < content.count && content.data[index] == #char "\"", "Missing quote.");
+                }
+                index += 1;
+
+                name, found := get_string_until_closing_quote(content, index);
+                if !found {
+                    return index, false;
+                }
+
+                index = trim_right(content, index + name.count + 1);
+                #if ASSERT {
+                    assert(index < content.count && content.data[index] == #char ":", "Missing colon.");
+                }
+
+                // now we're starting on the inner value
+                index = trim_right(content, index + 1);
+
+                entry_name: string = ---;
+                #if keep_strings_in_place {
+                    entry_name = name;
+                } else {
+                    #if contiguous_memory {
+                        offset, allocated := allocate(memory, name.count, u8);
+                        entry_name.data = offset;
+                        entry_name.count = name.count;
+                        memcpy(allocated, name.data, name.count);
+                    } else {
+                        entry_name = copy_string(name);
+                    }
+                }
+
+                entry := absolute(result, memory.data, relative).object.entries.data + entry_index;
+                absolute(entry, memory.data, relative).name = entry_name;
+                index, success = json_parse_into(content, index, cast(*JsonObject) (cast(*u8) entry + entry_value_offset), memory, relative, contiguous_memory, keep_strings_in_place);
+                if !success {
+                    return index, false;
+                }
+
+                index = trim_right(content, index);
+                #if ASSERT {
+                    assert(index < content.count && content.data[index] == #char "," || content.data[index] == #char "}", "Missing comma or right bracket.");
+                }
+                if index < content.count && content.data[index] == #char "}" {
+                    return index + 1, true;
+                }
+
+                // move on to get the next member
+                index = trim_right(content, index + 1);
+
+                entry_index += 1;
+            }
+
+            return index, false;
+        } else if content.data[index] == #char "[" {
+            // for memory purposes, the array entry is of type [..] JsonObject
+            #if contiguous_memory {
+                absolute(result, memory.data, relative).type = .Array;
+            } else {
+                result.type = .Array;
+            }
+
+            success: bool = ---;
+            index, success = json_parse_into(content, index, cast(*[..] JsonObject) (cast(*u8) result + union_offset), memory, relative, contiguous_memory, keep_strings_in_place);
+            return index, success;
+        } else if content.data[index] == #char "\"" {
+            #if contiguous_memory {
+                absolute(result, memory.data, relative).type = .String;
+            } else {
+                result.type = .String;
+            }
+
+            success: bool = ---;
+            index, success = json_parse_into(content, index, cast(*string) (cast(*u8) result + union_offset), memory, relative, contiguous_memory, keep_strings_in_place);
+            return index, success;
+        } else if content.data[index] == #char "n" {
+            #if ASSERT {
+                assert(is_null(content, index), "Invalid null string.");
+            }
+
+            #if contiguous_memory {
+                absolute(result, memory.data, relative).type = .Null;
+            } else {
+                result.type = .Null;
+            }
+
+            return index + 4, true;
+        } else if content.data[index] == #char "f" {
+            #if ASSERT {
+                assert(is_false(content, index), "Invalid false string.");
+            }
+
+            #if contiguous_memory {
+                absolute(result, memory.data, relative).type = .Boolean;
+                absolute(result, memory.data, relative).boolean = false;
+            } else {
+                result.type = .Boolean;
+                result.boolean = false;
+            }
+
+            return index + 5, true;
+        } else if content.data[index] == #char "t" {
+            #if ASSERT {
+                assert(is_true(content, index), "Invalid true string.");
+            }
+
+            #if contiguous_memory {
+                absolute(result, memory.data, relative).type = .Boolean;
+                absolute(result, memory.data, relative).boolean = true;
+            } else {
+                result.type = .Boolean;
+                result.boolean = true;
+            }
+
+            return index + 4, true;
+        } else {
+            previous_valid_int := true;
+            valid_int := true;
+            previous_valid_float := true;
+            valid_float := true;
+
+            lookahead_index := index;
+            while lookahead_index < content.count && (valid_int || valid_float) {
+                previous_valid_int = valid_int;
+                previous_valid_float = valid_float;
+                valid_int = valid_int && is_signed_int_char(content.data[lookahead_index]);
+                valid_float = valid_float && is_float_char(content.data[lookahead_index]);
+
+                lookahead_index += 1;
+            }
+
+            counted := lookahead_index - index;
+
+            if previous_valid_int && counted > 0 {
+                #if contiguous_memory {
+                    absolute(result, memory.data, relative).type = .Integer;
+                } else {
+                    result.type = .Integer;
+                }
+
+                success: bool = ---;
+                index, success = json_parse_into(content, index, cast(*s64) (cast(*u8) result + union_offset), memory, relative, contiguous_memory, keep_strings_in_place);
+                return index, success;
+            } else if previous_valid_float && counted > 0 {
+                #if contiguous_memory {
+                    absolute(result, memory.data, relative).type = .Float;
+                } else {
+                    result.type = .Float;
+                }
+
+                success: bool = ---;
+                index, success = json_parse_into(content, index, cast(*float64) (cast(*u8) result + union_offset), memory, relative, contiguous_memory, keep_strings_in_place);
+                return index, success;
+            }
+        }
+    }
+
+    return index, false;
+}
+
+json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool #modify modify_require_struct_reject_json_object(T) {
     success: bool;
 
     #if ASSERT {
@@ -28,13 +259,13 @@ json_parse_into :: (content: string, index: int, result: *$T, memory: *[..] u8, 
     }
     index = trim_right(content, index + 1);
 
+    // check for immediate close
+    if index < content.count && content.data[index] == #char "}" {
+        return index + 1, true;
+    }
+
     // skip the next quote
     while index < content.count {
-        // cur: string;
-        // cur.data = content.data + index;
-        // cur.count = content.count - index;
-        // print("String is: %\n", cur);
-
         #if ASSERT {
             assert(index < content.count && content.data[index] == #char "\"", "Missing quote.");
         }
@@ -81,12 +312,15 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
         return index + 1, true;
     }
 
-    entry_count := get_array_entries_until_closing_bracket(content, index);
+    entry_count, found := get_array_entries_until_closing_bracket(content, index);
+    if !found {
+        return index, false;
+    }
 
     #if contiguous_memory {
     // ill leave allocated as 0 since its not allocating into the array, I guess
         required_bytes := entry_count * size_of(T);
-        offset, allocated := allocate(memory, required_bytes, keep_strings_in_place, T);
+        offset, allocated := allocate(memory, required_bytes, T, initialize = true, resizable_array = true);
         absolute(result, memory.data, relative).data = offset;
         absolute(result, memory.data, relative).count = entry_count;
     } else {
@@ -95,12 +329,7 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
         << result = arr;
     }
 
-    #if contiguous_memory {
-        result_count := absolute(result, memory.data, relative).count;
-    } else {
-        result_count := result.count;
-    }
-    for entry_index: 0..result_count - 1 {
+    for entry_index: 0..entry_count - 1 {
         #if contiguous_memory {
             entry := absolute(result, memory.data, relative).data + entry_index;
         }  else {
@@ -142,11 +371,11 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
     // ill leave allocated as 0 since its not allocating into the array, I guess
 
     for entry_index: 0..N - 1 {
-        #if contiguous_memory {
-            entry := absolute(result, memory.data, relative).data + entry_index;
-        } else {
+        // #if contiguous_memory {
+        //     entry := absolute(result, memory.data, relative).data + entry_index;
+        // } else {
             entry := result.data + entry_index;
-        }
+        // }
 
         index, success = json_parse_into(content, index, entry, memory, relative, contiguous_memory, keep_strings_in_place);
         if !success {
@@ -172,7 +401,7 @@ json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8,
         if is_null(content, index) {
             return index + 4, true;
         } else {
-            offset := allocate(memory, #run size_of(T), keep_strings_in_place, T);
+            offset := allocate(memory, #run size_of(T), T, initialize = true);
             << absolute(result, memory.data, relative) = offset;
             entry: *T = offset;
 
@@ -181,12 +410,16 @@ json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8,
             return index, success;
         }
     } else {
-        entry := New(T);
-        << result = entry;
+        if is_null(content, index) {
+            return index + 4, true;
+        } else {
+            entry := New(T);
+            << result = entry;
 
-        success: bool;
-        index, success = json_parse_into(content, index, entry, memory, true, contiguous_memory, keep_strings_in_place);
-        return index, success;
+            success: bool;
+            index, success = json_parse_into(content, index, entry, memory, true, contiguous_memory, keep_strings_in_place);
+            return index, success;
+        }
     }
 }
 
@@ -281,6 +514,10 @@ json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[.
     }
     value_string.count = index - first_index;
 
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "U8 has invalid characters.");
+    }
+
     value, success := string_to_int(value_string, 10, u8);
     if success {
         #if contiguous_memory {
@@ -306,6 +543,10 @@ json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[
         index += 1;
     }
     value_string.count = index - first_index;
+
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "U16 has invalid characters.");
+    }
 
     value, success := string_to_int(value_string, 10, u16);
     if success {
@@ -333,6 +574,9 @@ json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[
     }
     value_string.count = index - first_index;
 
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "U32 has invalid characters.");
+    }
 
     value, success := string_to_int(value_string, 10, u32);
     if success {
@@ -360,6 +604,10 @@ json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[
     }
     value_string.count = index - first_index;
 
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "U64 has invalid characters.");
+    }
+
     value, success := string_to_int(value_string, 10, u64);
     if success {
         #if contiguous_memory {
@@ -385,6 +633,10 @@ json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[.
         index += 1;
     }
     value_string.count = index - first_index;
+
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "S8 has invalid characters.");
+    }
 
     value, success := string_to_int(value_string, 10, s8);
     if success {
@@ -412,6 +664,10 @@ json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[
     }
     value_string.count = index - first_index;
 
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "S16 has invalid characters.");
+    }
+
     value, success := string_to_int(value_string, 10, s16);
     if success {
         #if contiguous_memory {
@@ -438,6 +694,10 @@ json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[
     }
     value_string.count = index - first_index;
 
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "S32 has invalid characters.");
+    }
+
     value, success := string_to_int(value_string, 10, s32);
     if success {
         #if contiguous_memory {
@@ -463,6 +723,10 @@ json_parse_into :: inline (content: string, index: int, result: *s64, memory: *[
         index += 1;
     }
     value_string.count = index - first_index;
+
+    #if ASSERT {
+        assert(is_valid_after_number(content, index), "S64 has invalid characters.");
+    }
 
     value, success := string_to_int(value_string, 10, s64);
     if success {
@@ -520,7 +784,7 @@ json_parse_into :: inline (content: string, index: int, result: *string, memory:
             absolute(result, memory.data, relative).data = value.data;
             absolute(result, memory.data, relative).count = value.count;
         } else {
-            offset, allocated := allocate(memory, value.count, keep_strings_in_place, u8);
+            offset, allocated := allocate(memory, value.count, u8);
             absolute(result, memory.data, relative).data = offset;
             absolute(result, memory.data, relative).count = value.count;
             memcpy(allocated, value.data, value.count);
@@ -537,6 +801,35 @@ json_parse_into :: inline (content: string, index: int, result: *string, memory:
     return index, true;
 }
 
+skip_unknown_type :: inline (content: string, index: int) -> int, bool {
+    opened_object_count := 0;
+    opened_array_count := 0;
+    opened_string := false;
+
+    for lookahead_index: index..content.count - 1 {
+        if content.data[lookahead_index] == #char "\"" && content.data[lookahead_index - 1] != #char "\\" {
+            opened_string = !opened_string;
+        } else if !opened_string {
+            if content.data[lookahead_index] == #char "[" {
+                opened_array_count += 1;
+            } else if content.data[lookahead_index] == #char "]" {
+                opened_array_count -= 1;
+            } else if content.data[lookahead_index] == #char "{" {
+                opened_object_count += 1;
+            } else if content.data[lookahead_index] == #char "}" {
+                if opened_array_count == 0 && opened_object_count == 0 {
+                    return lookahead_index, true;
+                }
+                opened_object_count -= 1;
+            } else if content.data[lookahead_index] == #char "," && opened_array_count == 0 && opened_object_count == 0 {
+                return lookahead_index, true;
+            }
+        }
+    }
+    
+    return index, false;
+}
+
 absolute :: inline (pointer: *$T, memory: *u8, relative: bool) -> *T {
     if relative {
         value := cast(int) pointer;
@@ -546,7 +839,7 @@ absolute :: inline (pointer: *$T, memory: *u8, relative: bool) -> *T {
     }
 }
 
-allocate :: (memory: *[..] u8, bytes: int, $keep_strings_in_place: bool, $T: Type) -> *T, *T {
+allocate :: (memory: *[..] u8, bytes: int, $T: Type, $initialize: bool = true, $resizable_array: bool = false) -> *T, *T {
     required_bytes := memory.count + bytes;
     allocate_bytes: int = ---;
 
@@ -565,13 +858,33 @@ allocate :: (memory: *[..] u8, bytes: int, $keep_strings_in_place: bool, $T: Typ
         }
     }
 
-    current_allocated := memory.allocated;
     array_reserve(memory, allocate_bytes);
-    memset(memory.data + current_allocated, 0, memory.allocated - current_allocated);
 
-    relative := memory.count + 1;
-    allocated := memory.data + memory.count;
+    relative := cast(*T) (memory.count + 1);
+    allocated := cast(*T) (memory.data + memory.count);
     memory.count += bytes;
+
+    #if initialize {
+        #if resizable_array {
+            ini :: initializer_of(T);
+            #if ini {
+                entry_size :: #run size_of(T);
+                entry_count := bytes / entry_size;
+                for 0..entry_count - 1 {
+                    inline ini(allocated + it);
+                }
+            } else {
+                memset(allocated, 0, bytes);
+            }
+        } else {
+            ini :: initializer_of(T);
+            #if ini {
+                inline ini(allocated);
+            } else {
+                memset(allocated, 0, bytes);
+            }
+        }
+    }
 
     return cast(*T) relative, cast(*T) allocated;
 }
@@ -672,12 +985,25 @@ is_null :: inline (content: string, index: int) -> bool {
     return value;
 }
 
+is_valid_after_number :: inline (content: string, index: int) -> bool {
+    valid := false;
+    valid = valid || (index < content.count && content.data[index] == #char "]");
+    valid = valid || (index < content.count && content.data[index] == #char "}");
+    valid = valid || (index < content.count && content.data[index] == #char ",");
+    valid = valid || (index < content.count && content.data[index] == #char "\r");
+    valid = valid || (index < content.count && content.data[index] == #char "\n");
+    valid = valid || (index < content.count && content.data[index] == #char "\t");
+    valid = valid || (index < content.count && content.data[index] == #char " ");
+    return valid;
+}
+
 get_string_until_closing_quote :: inline (content: string, index: int) -> string, bool {
     // this method inherently can't be called until we find the first quote, so we don't have to worry about the -1 index
-    name: string = ---;
-    name.data = content.data + index;
+    // length, found := get_string_length_until_closing_quote(content, index);
     for lookahead: index..content.count - 1 {
         if content.data[lookahead] == #char "\"" && content.data[lookahead - 1] != #char "\\" {
+            name: string = ---;
+            name.data = content.data + index;
             name.count = lookahead - index;
             return name, true;
         }
@@ -686,14 +1012,13 @@ get_string_until_closing_quote :: inline (content: string, index: int) -> string
     return "", false;
 }
 
-get_array_entries_until_closing_bracket :: inline (content: string, index: int) -> int {
+get_array_entries_until_closing_bracket :: inline (content: string, index: int) -> int, bool {
     // this method inherently can't be called until we find the first array bracket, so we don't have to worry about the -1 index
     opened_array_count: int;
     opened_object_count: int;
     opened_string: bool;
     top_level_comma_count: int;
-    lookahead_index := index;
-    while lookahead_index < content.count {
+    for lookahead_index: index..content.count - 1 {
         if content.data[lookahead_index] == #char "\"" && content.data[lookahead_index - 1] != #char "\\" {
             opened_string = !opened_string;
         } else if !opened_string {
@@ -701,7 +1026,7 @@ get_array_entries_until_closing_bracket :: inline (content: string, index: int) 
                 opened_array_count += 1;
             } else if content.data[lookahead_index] == #char "]" {
                 if opened_array_count == 0 {
-                    break;
+                    return top_level_comma_count + 1, true;
                 }
                 opened_array_count -= 1;
             } else if content.data[lookahead_index] == #char "{" {
@@ -712,11 +1037,53 @@ get_array_entries_until_closing_bracket :: inline (content: string, index: int) 
                 top_level_comma_count += 1;
             }
         }
-
-        lookahead_index += 1;
     }
 
-    return top_level_comma_count + 1;
+    return 0, false;
+}
+
+get_object_entries_until_closing_bracket :: inline (content: string, index: int) -> int, bool {
+    // this method inherently can't be called until we find the first array bracket, so we don't have to worry about the -1 index
+    opened_array_count: int;
+    opened_object_count: int;
+    opened_string: bool;
+    top_level_comma_count: int;
+    for lookahead_index: index..content.count - 1 {
+        if content.data[lookahead_index] == #char "\"" && content.data[lookahead_index - 1] != #char "\\" {
+            opened_string = !opened_string;
+        } else if !opened_string {
+            if content.data[lookahead_index] == #char "[" {
+                opened_array_count += 1;
+            } else if content.data[lookahead_index] == #char "]" {
+                opened_array_count -= 1;
+            } else if content.data[lookahead_index] == #char "{" {
+                opened_object_count += 1;
+            } else if content.data[lookahead_index] == #char "}" {
+                if opened_object_count == 0 {
+                    return top_level_comma_count + 1, true;
+                }
+                opened_object_count -= 1;
+            } else if content.data[lookahead_index] == #char "," && opened_array_count == 0 && opened_object_count == 0 {
+                top_level_comma_count += 1;
+            }
+        }
+    }
+
+    return 0, false;
+}
+
+get_member_offset :: (t: Type, member_name: string) -> int {
+    info := cast(*Type_Info_Struct) t;
+    assert(info.type == .STRUCT, "Can only get member offset for a struct.");
+
+    for member: info.members {
+        if member.name == member_name {
+            return member.offset_in_bytes;
+        }
+    }
+
+    assert(info.type == .STRUCT, "The member must exist.");
+    return 0;
 }
 
 get_name_to_parse_string :: (t: Type) -> string {
@@ -731,6 +1098,10 @@ get_name_to_parse_string :: (t: Type) -> string {
             continue;
         }
 
+        if ignore_member(member.notes) {
+            continue;
+        }
+
         valid_members += 1;
     }
 
@@ -740,8 +1111,13 @@ get_name_to_parse_string :: (t: Type) -> string {
             continue;
         }
 
+        if ignore_member(member.notes) {
+            continue;
+        }
+
         member_name := member.name;
         json_name := get_json_name(member.name, member.notes);
+
 
         // TODO would generating a switch statement be better performance? need to test
         append(*builder, "if name == \"");
@@ -766,6 +1142,15 @@ get_name_to_parse_string :: (t: Type) -> string {
         current_member += 1;
     }
 
+    if valid_members > 0 {
+        append(*builder, " else {\n");
+        append(*builder, "index, success = skip_unknown_type(content, index);\n");
+        append(*builder, "if !success {\n");
+        append(*builder, "return index, false;\n");
+        append(*builder, "}\n");
+        append(*builder, "}\n");
+    }
+
     return builder_to_string(*builder);
 }
 
@@ -779,14 +1164,20 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
         builder: String_Builder;
 
         if info.type == .STRUCT {
-            struct_info := cast(*Type_Info_Struct) info;
+            if t == JsonObject {
+                append(*builder, "json_object_update_pointers(*");
+                append(*builder, top_level_name);
+                append(*builder, ", pointer_offset);\n");
+            } else {
+                struct_info := cast(*Type_Info_Struct) info;
 
-            for member: struct_info.members {
-                if member.offset_into_constant_storage >= 0 {
-                    continue;
+                for member: struct_info.members {
+                    if member.offset_into_constant_storage >= 0 {
+                        continue;
+                    }
+
+                    append(*builder, get_child(<< cast(*Type) *member.type, tprint("%.%", top_level_name, member.name), keep_strings_in_place));
                 }
-
-                append(*builder, get_child(<< cast(*Type) *member.type, tprint("%.%", top_level_name, member.name), keep_strings_in_place));
             }
         } else if info.type == .POINTER {
             pointer_info := cast(*Type_Info_Pointer) info;

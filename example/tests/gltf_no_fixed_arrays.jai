@@ -2245,7 +2245,7 @@ JsonType :: struct {
     GltfJsonMaterial :: struct {
         name: *string;
         pbrMetallicRoughness: *struct {
-            baseColorFactor: [4] float = .[1, 1, 1, 1];
+            baseColorFactor: [..] float;
             baseColorTexture: *struct {
                 index: int;
                 texCoord: int = 0;
@@ -2271,7 +2271,7 @@ JsonType :: struct {
             index: int;
             texCoord: int = 0;
         };
-        emissiveFactor: [3] float = .[0, 0, 0];
+        emissiveFactor: [..] float;
         alphaMode: string = "OPAQUE";
         alphaCutoff: float = 0.5;
         doubleSided: bool = false;
@@ -2293,11 +2293,11 @@ JsonType :: struct {
         camera: *int;
         children: *[..] int;
         skin: *int;
-        matrix: [16] float = .[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        matrix: [..] float;
         mesh: *int;
-        rotation: [4] float = .[0, 0, 0, 1];
-        scale: [3] float = .[1, 1, 1];
-        translation: [3] float = .[0, 0, 0];
+        rotation: [..] float;
+        scale: [..] float;
+        translation: [..] float;
         weights: *[..] float;
         name: *string;
     }

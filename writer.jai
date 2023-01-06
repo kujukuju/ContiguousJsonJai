@@ -9,7 +9,62 @@ json_write :: (object: $T, $output_constants: bool = true, $write_null_members: 
 
 #scope_file
 
-write_output :: (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) #modify modify_require_struct(T) {
+write_output :: (object: JsonObject, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
+    if #complete object.type == {
+        case .Object;
+            append(builder, "{");
+            wrote := false;
+            for entry: object.object.entries {
+                #if !write_null_members {
+                    if entry.value.type == .Null {
+                        continue;
+                    }
+                }
+
+                if wrote {
+                    append(builder, ",");
+                }
+
+                append(builder, "\"");
+                append(builder, entry.name);
+                append(builder, "\":");
+                write_output(entry.value, builder, output_constants, write_null_members, formatted);
+
+                wrote = true;
+            }
+            append(builder, "}");
+
+        case .Array;
+            append(builder, "[");
+            wrote := false;
+            for entry: object.array.entries {
+                if wrote {
+                    append(builder, ",");
+                }
+                write_output(entry, builder, output_constants, write_null_members, formatted);
+
+                wrote = true;
+            }
+            append(builder, "]");
+
+        case .Integer;
+            write_output(object.integer, builder, output_constants, write_null_members, formatted);
+
+        case .Float;
+            write_output(object.number, builder, output_constants, write_null_members, formatted);
+
+        case .Boolean;
+            write_output(object.boolean, builder, output_constants, write_null_members, formatted);
+
+        case .String;
+            write_output(object.str, builder, output_constants, write_null_members, formatted);
+
+        case .Null;
+            append(builder, "null");
+    }
+}
+
+write_output :: (object: $T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) #modify modify_require_struct_reject_json_object(T) {
     #insert #run get_struct_string(T, output_constants, write_null_members, formatted);
 }
 
@@ -161,6 +216,10 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_members: bool,
             continue;
         }
 
+        if ignore_member(member.notes) {
+            continue;
+        }
+
         member_count += 1;
     }
 
@@ -175,6 +234,10 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_members: bool,
         }
 
         if !is_writable_type(<< cast(*Type) *member.type) {
+            continue;
+        }
+
+        if ignore_member(member.notes) {
             continue;
         }
         

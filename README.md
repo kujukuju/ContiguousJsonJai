@@ -28,9 +28,10 @@ Supports:
   * booleans
   * pointer and null types
   * in place and allocated strings `points to the substring in the json blob or copies the string memory`
-  * optional values `creates a pointer in memory`
+  * optional values `allocates a pointer in memory`
   * contiguous and normal memory models `all memory as a single block or allocated as expected`
   * renaming values `@json(name)`
+  * ignore reading/writing values `@jsonignore`
 
 Does not support:
   * unknown/generic types

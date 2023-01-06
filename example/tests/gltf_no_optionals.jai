@@ -2244,7 +2244,7 @@ JsonType :: struct {
     GltfJsonMaterial :: struct {
         name: string;
         pbrMetallicRoughness: struct {
-            baseColorFactor: [4] int = .[1, 1, 1, 1];
+            baseColorFactor: [4] float = .[1, 1, 1, 1];
             baseColorTexture: struct {
                 index: int;
                 texCoord: int = 0;
