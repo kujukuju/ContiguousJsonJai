@@ -32,6 +32,7 @@ Supports:
   * contiguous and normal memory models `all memory as a single block or allocated as expected`
   * renaming values `@json(name)`
   * ignore reading/writing values `@jsonignore`
+  * generic types `JsonGeneric`
 
 Does not support:
   * unicode, I think... because any value of `"` except `\"` will escape a quote
