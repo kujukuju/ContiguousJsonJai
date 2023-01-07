@@ -8,7 +8,7 @@ json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep
             if memory.data {
                 pointer_offset := cast(int) memory.data - 1;
 
-                json_object_update_pointers :: (object: *JsonObject, pointer_offset: int) {
+                json_object_update_pointers :: (object: *JsonGeneric, pointer_offset: int) {
                     if object.type == .Object {
                         if object.object.entries.data {
                             object.object.entries.data = xx ((cast(*u8) object.object.entries.data) + pointer_offset);
@@ -23,9 +23,9 @@ json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep
                             }
                         }
                     } else if object.type == .Array {
-                        if object.array.entries.data {
-                            object.array.entries.data = xx ((cast(*u8) object.array.entries.data) + pointer_offset);
-                            for *entry: object.array.entries {
+                        if object.array.data {
+                            object.array.data = xx ((cast(*u8) object.array.data) + pointer_offset);
+                            for *entry: object.array {
                                 json_object_update_pointers(entry, pointer_offset);
                             }
                         }
@@ -52,8 +52,8 @@ json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep
 
 // expected that these functions get provided the next non-whitespace index, but are allowed to return a whitespace index
 
-json_parse_into :: (content: string, index: int, result: *JsonObject, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
-    union_offset :: #run get_member_offset(JsonObject, ""); // this gets the union
+json_parse_into :: (content: string, index: int, result: *JsonGeneric, memory: *[..] u8, relative: bool, $contiguous_memory: bool, $keep_strings_in_place: bool) -> int, bool {
+    union_offset :: #run get_member_offset(JsonGeneric, ""); // this gets the union
     entry_value_offset :: #run get_member_offset(JsonObjectEntry, "value");
 
     if index < content.count {
@@ -123,9 +123,14 @@ json_parse_into :: (content: string, index: int, result: *JsonObject, memory: *[
                     }
                 }
 
-                entry := absolute(result, memory.data, relative).object.entries.data + entry_index;
-                absolute(entry, memory.data, relative).name = entry_name;
-                index, success = json_parse_into(content, index, cast(*JsonObject) (cast(*u8) entry + entry_value_offset), memory, relative, contiguous_memory, keep_strings_in_place);
+                #if contiguous_memory {
+                    entry := absolute(result, memory.data, relative).object.entries.data + entry_index;
+                    absolute(entry, memory.data, true).name = entry_name;
+                } else {
+                    entry := result.object.entries.data + entry_index;
+                    entry.name = entry_name;
+                }
+                index, success = json_parse_into(content, index, cast(*JsonGeneric) (cast(*u8) entry + entry_value_offset), memory, true, contiguous_memory, keep_strings_in_place);
                 if !success {
                     return index, false;
                 }
@@ -146,7 +151,6 @@ json_parse_into :: (content: string, index: int, result: *JsonObject, memory: *[
 
             return index, false;
         } else if content.data[index] == #char "[" {
-            // for memory purposes, the array entry is of type [..] JsonObject
             #if contiguous_memory {
                 absolute(result, memory.data, relative).type = .Array;
             } else {
@@ -154,7 +158,7 @@ json_parse_into :: (content: string, index: int, result: *JsonObject, memory: *[
             }
 
             success: bool = ---;
-            index, success = json_parse_into(content, index, cast(*[..] JsonObject) (cast(*u8) result + union_offset), memory, relative, contiguous_memory, keep_strings_in_place);
+            index, success = json_parse_into(content, index, cast(*[..] JsonGeneric) (cast(*u8) result + union_offset), memory, relative, contiguous_memory, keep_strings_in_place);
             return index, success;
         } else if content.data[index] == #char "\"" {
             #if contiguous_memory {
@@ -1164,7 +1168,7 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
         builder: String_Builder;
 
         if info.type == .STRUCT {
-            if t == JsonObject {
+            if t == JsonGeneric {
                 append(*builder, "json_object_update_pointers(*");
                 append(*builder, top_level_name);
                 append(*builder, ", pointer_offset);\n");

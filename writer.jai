@@ -9,7 +9,7 @@ json_write :: (object: $T, $output_constants: bool = true, $write_null_members: 
 
 #scope_file
 
-write_output :: (object: JsonObject, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
+write_output :: (object: JsonGeneric, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     if #complete object.type == {
         case .Object;
             append(builder, "{");
@@ -37,7 +37,7 @@ write_output :: (object: JsonObject, builder: *String_Builder, $output_constants
         case .Array;
             append(builder, "[");
             wrote := false;
-            for entry: object.array.entries {
+            for entry: object.array {
                 if wrote {
                     append(builder, ",");
                 }

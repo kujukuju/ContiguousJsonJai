@@ -14,4 +14,4 @@ JSON_STRING :: #string DONE
 ]
 DONE
 
-JsonType :: [..] JsonObject;
+JsonType :: [..] JsonGeneric;
