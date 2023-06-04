@@ -14,7 +14,7 @@ write_output :: (object: JsonGeneric, builder: *String_Builder, $output_constant
         case .Object;
             append(builder, "{");
             wrote := false;
-            for entry: object.object.entries {
+            for entry: object.object {
                 #if !write_null_members {
                     if entry.value.type == .Null {
                         continue;

@@ -14,7 +14,7 @@ JsonGeneric :: struct {
     type: JsonType;
     
     union {
-        object: JsonObject;
+        object: [..] JsonObjectEntry;
         array: [..] JsonGeneric;
         integer: s64;
         number: float64;
@@ -23,65 +23,77 @@ JsonGeneric :: struct {
     };
 }
 
-JsonObject :: struct {
-    entries: [..] JsonObjectEntry;
-}
-
 JsonObjectEntry :: struct {
     name: string;
     value: JsonGeneric;
 }
 
-operator [] :: (map: JsonObject, name: string) -> *JsonGeneric {
-    for i: 0..map.count - 1 {
-        if map.entries[i].name == name {
-            return *map.entries[i];
+operator [] :: (generic: JsonGeneric, name: string) -> *JsonGeneric {
+    if generic.type != .Object {
+        return null;
+    }
+
+    for i: 0..generic.object.count - 1 {
+        if generic.object[i].name == name {
+            return *generic.object[i].value;
         }
     }
 
     return null;
 }
 
-operator [] :: (map: JsonObject, name: *u8) -> *JsonGeneric {
-    for i: 0..map.count - 1 {
-        if memcmp(map.entries[i].name, name, mape[i].count) == 0 {
-            return *map.entries[i];
+operator [] :: (generic: JsonGeneric, name: *u8) -> *JsonGeneric {
+    if generic.type != .Object {
+        return null;
+    }
+
+    for i: 0..generic.object.count - 1 {
+        if memcmp(generic.object[i].name, name, generic.object[i].name.count) == 0 {
+            return *generic.object[i].value;
         }
     }
 
     return null;
 }
 
-operator [] :: (map: *JsonObject, name: string) -> *JsonGeneric {
-    for i: 0..map.count - 1 {
-        if memcmp(map.entries[i].name, name, mape[i].count) == 0 {
-            return *map.entries[i];
+operator [] :: (generic: *JsonGeneric, name: string) -> *JsonGeneric {
+    if generic.type != .Object {
+        return null;
+    }
+    
+    for i: 0..generic.object.count - 1 {
+        if memcmp(generic.object[i].name, name, generic.object[i].name.count) == 0 {
+            return *generic.object[i].value;
         }
     }
 
-    entry := array_add(*map.entries);
+    entry := array_add(*generic.object);
     entry.name.data = alloc(name.count);
-    memcpy(entry.name.data, name.data, entry.count);
+    memcpy(entry.name.data, name.data, name.count);
     entry.name.count = name.count;
 
-    return array_add(map);
+    return *entry.value;
 }
 
-operator [] :: (map: *JsonObject, name: *u8) -> *JsonGeneric {
-    for i: 0..map.count - 1 {
-        if memcmp(map.entries[i].name, name, mape[i].count) == 0 {
-            return *map.entries[i];
+operator [] :: (generic: *JsonGeneric, name: *u8) -> *JsonGeneric {
+    if generic.type != .Object {
+        return null;
+    }
+    
+    for i: 0..generic.object.count - 1 {
+        if memcmp(generic.object[i].name, name, generic.object[i].name.count) == 0 {
+            return *generic.object[i].value;
         }
     }
 
     name_count := c_style_strlen(name);
 
-    entry := array_add(map.entries);
+    entry := array_add(*generic.object);
     entry.name.data = alloc(name_count);
-    memcpy(entry.name.data, name, entry.count);
+    memcpy(entry.name.data, name, name_count);
     entry.name.count = name_count;
 
-    return entry;
+    return *entry.value;
 }
 
 get_json_name :: (member_name: string, notes: [] string) -> string {
@@ -148,7 +160,7 @@ json_print :: (value: $T, name: string = "", depth: int = 0) {
         if t == JsonGeneric {
             append(*builder, #string DONE
             if value.type == .Object {
-                for entry: value.object.entries {
+                for entry: value.object {
                     json_print(entry.value, entry.name, depth + 1);
                 }
             } else if value.type == .Array {

@@ -10,9 +10,9 @@ json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep
 
                 json_object_update_pointers :: (object: *JsonGeneric, pointer_offset: int) {
                     if object.type == .Object {
-                        if object.object.entries.data {
-                            object.object.entries.data = xx ((cast(*u8) object.object.entries.data) + pointer_offset);
-                            for *entry: object.object.entries {
+                        if object.object.data {
+                            object.object.data = xx ((cast(*u8) object.object.data) + pointer_offset);
+                            for *entry: object.object {
                                 #if !keep_strings_in_place {
                                     if entry.name.data {
                                         entry.name.data = xx ((cast(*u8) entry.name.data) + pointer_offset);
@@ -80,12 +80,12 @@ json_parse_into :: (content: string, index: int, result: *JsonGeneric, memory: *
             // ill leave allocated as 0 since its not allocating into the array, I guess
                 required_bytes := object_entries * size_of(JsonObjectEntry);
                 offset, allocated := allocate(memory, required_bytes, JsonObjectEntry, initialize = true, resizable_array = true);
-                absolute(result, memory.data, relative).object.entries.data = offset;
-                absolute(result, memory.data, relative).object.entries.count = object_entries;
+                absolute(result, memory.data, relative).object.data = offset;
+                absolute(result, memory.data, relative).object.count = object_entries;
             } else {
                 arr: [..] JsonObjectEntry;
                 array_resize(*arr, object_entries);
-                result.object.entries = arr;
+                result.object = arr;
             }
 
             // skip the next quote
@@ -124,10 +124,10 @@ json_parse_into :: (content: string, index: int, result: *JsonGeneric, memory: *
                 }
 
                 #if contiguous_memory {
-                    entry := absolute(result, memory.data, relative).object.entries.data + entry_index;
+                    entry := absolute(result, memory.data, relative).object.data + entry_index;
                     absolute(entry, memory.data, true).name = entry_name;
                 } else {
-                    entry := result.object.entries.data + entry_index;
+                    entry := result.object.data + entry_index;
                     entry.name = entry_name;
                 }
                 index, success = json_parse_into(content, index, cast(*JsonGeneric) (cast(*u8) entry + entry_value_offset), memory, true, contiguous_memory, keep_strings_in_place);
@@ -1174,6 +1174,10 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
                 append(*builder, ", pointer_offset);\n");
             } else {
                 struct_info := cast(*Type_Info_Struct) info;
+
+                if struct_info.textual_flags & .UNION {
+                    assert(false, "Cannot process a struct with a union.");
+                }
 
                 for member: struct_info.members {
                     if member.offset_into_constant_storage >= 0 {
