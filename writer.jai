@@ -1,8 +1,12 @@
 
-json_write :: (object: $T, $output_constants: bool = true, $write_null_members: bool = false, $formatted: bool = false) -> string {
+json_write :: (object: $T, $output_constants: bool = true, $write_null_members: bool = false, $formatted: bool = false, $write_extra_null: bool = false) -> string {
     builder: String_Builder;
 
     write_output(object, *builder, output_constants, write_null_members, formatted);
+
+    #if write_extra_null {
+        append(*builder, #char "\0");
+    }
 
     return builder_to_string(*builder);
 }
