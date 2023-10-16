@@ -28,19 +28,19 @@ JsonObjectEntry :: struct {
     value: JsonGeneric;
 }
 
-operator [] :: (generic: JsonGeneric, name: string) -> *JsonGeneric {
-    if generic.type != .Object {
-        return null;
-    }
+// operator [] :: (generic: JsonGeneric, name: string) -> *JsonGeneric {
+//     if generic.type != .Object {
+//         return null;
+//     }
 
-    for i: 0..generic.object.count - 1 {
-        if generic.object[i].name == name {
-            return *generic.object[i].value;
-        }
-    }
+//     for i: 0..generic.object.count - 1 {
+//         if generic.object[i].name == name {
+//             return *generic.object[i].value;
+//         }
+//     }
 
-    return null;
-}
+//     return null;
+// }
 
 operator [] :: (generic: JsonGeneric, name: *u8) -> *JsonGeneric {
     if generic.type != .Object {
@@ -48,7 +48,7 @@ operator [] :: (generic: JsonGeneric, name: *u8) -> *JsonGeneric {
     }
 
     for i: 0..generic.object.count - 1 {
-        if memcmp(generic.object[i].name, name, generic.object[i].name.count) == 0 {
+        if memcmp(generic.object[i].name.data, name, generic.object[i].name.count) == 0 {
             return *generic.object[i].value;
         }
     }
@@ -62,7 +62,7 @@ operator [] :: (generic: *JsonGeneric, name: string) -> *JsonGeneric {
     }
     
     for i: 0..generic.object.count - 1 {
-        if memcmp(generic.object[i].name, name, generic.object[i].name.count) == 0 {
+        if memcmp(generic.object[i].name.data, name, generic.object[i].name.count) == 0 {
             return *generic.object[i].value;
         }
     }
