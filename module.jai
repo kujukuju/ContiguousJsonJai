@@ -1,4 +1,4 @@
-#module_parameters(ASM := true, ASSERT := false);
+#module_parameters(ASM := true, ENABLE_ASSERT := true);
 
 JsonGeneric :: struct {
     JsonType :: enum {
@@ -42,18 +42,22 @@ JsonObjectEntry :: struct {
 //     return null;
 // }
 
-operator [] :: (generic: JsonGeneric, name: *u8) -> *JsonGeneric {
+get :: (generic: JsonGeneric, name: *u8) -> *JsonGeneric {
     if generic.type != .Object {
         return null;
     }
 
     for i: 0..generic.object.count - 1 {
-        if memcmp(generic.object[i].name.data, name, generic.object[i].name.count) == 0 {
+        if generic.object[i].name == to_string(name) {
             return *generic.object[i].value;
         }
     }
 
     return null;
+}
+
+operator [] :: (generic: JsonGeneric, name: *u8) -> *JsonGeneric {
+    return get(generic, name);
 }
 
 operator [] :: (generic: *JsonGeneric, name: string) -> *JsonGeneric {
@@ -62,7 +66,7 @@ operator [] :: (generic: *JsonGeneric, name: string) -> *JsonGeneric {
     }
     
     for i: 0..generic.object.count - 1 {
-        if memcmp(generic.object[i].name.data, name, generic.object[i].name.count) == 0 {
+        if generic.object[i].name == name {
             return *generic.object[i].value;
         }
     }
@@ -81,7 +85,7 @@ operator [] :: (generic: *JsonGeneric, name: *u8) -> *JsonGeneric {
     }
     
     for i: 0..generic.object.count - 1 {
-        if memcmp(generic.object[i].name, name, generic.object[i].name.count) == 0 {
+        if generic.object[i].name == to_string(name) {
             return *generic.object[i].value;
         }
     }
