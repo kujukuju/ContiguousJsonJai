@@ -92,7 +92,7 @@ write_output :: (object: [$N] $T, builder: *String_Builder, $output_constants: b
 
 write_output :: (object: *$T, builder: *String_Builder, $output_constants: bool, $write_null_members: bool, $formatted: bool) {
     if object {
-        write_output(<< object, builder, output_constants, write_null_members, formatted);
+        write_output(object.*, builder, output_constants, write_null_members, formatted);
     } else {
         append(builder, "null");
     }
@@ -183,7 +183,7 @@ write_output :: inline (object: string, builder: *String_Builder, $output_consta
 
 get_fixed_array_string :: (t: Type, output_constants: bool, write_null_members: bool, formatted: bool) -> string {
     array_info := cast(*Type_Info_Array) t;
-    
+
     insert: String_Builder;
 
     append(*insert, "append(builder, \"[\");\n");
@@ -216,7 +216,7 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_members: bool,
             continue;
         }
 
-        if !is_writable_type(<< cast(*Type) *member.type) {
+        if !is_writable_type((cast(*Type) *member.type).*) {
             continue;
         }
 
@@ -230,21 +230,21 @@ get_struct_string :: (t: Type, output_constants: bool, write_null_members: bool,
     if !write_null_members {
         append(*insert, "wrote := false;\n");
     }
-    
+
     index: int;
     for member: struct_info.members {
         if member.offset_into_constant_storage && !output_constants {
             continue;
         }
 
-        if !is_writable_type(<< cast(*Type) *member.type) {
+        if !is_writable_type((cast(*Type) *member.type).*) {
             continue;
         }
 
         if ignore_member(member.notes) {
             continue;
         }
-        
+
         member_name := member.name;
         json_name := get_json_name(member_name, member.notes);
 

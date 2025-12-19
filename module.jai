@@ -12,7 +12,7 @@ JsonGeneric :: struct {
     }
 
     type: JsonType;
-    
+
     union {
         object: [..] JsonObjectEntry;
         array: [..] JsonGeneric;
@@ -64,7 +64,7 @@ operator [] :: (generic: *JsonGeneric, name: string) -> *JsonGeneric {
     if generic.type != .Object {
         return null;
     }
-    
+
     for i: 0..generic.object.count - 1 {
         if generic.object[i].name == name {
             return *generic.object[i].value;
@@ -83,7 +83,7 @@ operator [] :: (generic: *JsonGeneric, name: *u8) -> *JsonGeneric {
     if generic.type != .Object {
         return null;
     }
-    
+
     for i: 0..generic.object.count - 1 {
         if generic.object[i].name == to_string(name) {
             return *generic.object[i].value;
@@ -142,7 +142,7 @@ modify_require_array_reject_fixed_array :: (t: Type) #expand {
 json_print :: (value: $T, name: string = "", depth: int = 0) {
     #if #run (cast(*Type_Info) T).type == .POINTER {
         if value {
-            json_print(<< value, name, depth);
+            json_print(value.*, name, depth);
             return;
         }
     }
@@ -194,9 +194,9 @@ json_print :: (value: $T, name: string = "", depth: int = 0) {
                     append(*builder, member.name);
                     append(*builder, " {\n");
                     append(*builder, "json_print(");
-                    append(*builder, "<< value.");
+                    append(*builder, "(value.");
                     append(*builder, member.name);
-                    append(*builder, ", \"");
+                    append(*builder, ").*, \"");
                     append(*builder, member.name);
                     append(*builder, "\", depth + 1);\n");
                     append(*builder, "}\n");

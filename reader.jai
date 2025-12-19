@@ -330,7 +330,7 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
     } else {
         arr: [..] T;
         array_resize(*arr, entry_count);
-        << result = arr;
+        result.* = arr;
     }
 
     for entry_index: 0..entry_count - 1 {
@@ -352,7 +352,7 @@ json_parse_into :: (content: string, index: int, result: *[..] $T, memory: *[..]
         if index < content.count && content.data[index] == #char "]" {
             return index + 1, true;
         }
-        
+
         index = trim_right(content, index + 1);
     }
 
@@ -393,7 +393,7 @@ json_parse_into :: (content: string, index: int, result: *[$N] $T, memory: *[..]
         if index < content.count && content.data[index] == #char "]" {
             return index + 1, true;
         }
-        
+
         index = trim_right(content, index + 1);
     }
 
@@ -406,7 +406,7 @@ json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8,
             return index + 4, true;
         } else {
             offset := allocate(memory, #run size_of(T), T, initialize = true);
-            << absolute(result, memory.data, relative) = offset;
+            absolute(result, memory.data, relative).* = offset;
             entry: *T = offset;
 
             success: bool;
@@ -418,7 +418,7 @@ json_parse_into :: (content: string, index: int, result: **$T, memory: *[..] u8,
             return index + 4, true;
         } else {
             entry := New(T);
-            << result = entry;
+            result.* = entry;
 
             success: bool;
             index, success = json_parse_into(content, index, entry, memory, true, contiguous_memory, keep_strings_in_place);
@@ -469,9 +469,9 @@ json_parse_into :: inline (content: string, index: int, result: *float32, memory
     value, success := string_to_float(value_string);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -495,9 +495,9 @@ json_parse_into :: inline (content: string, index: int, result: *float64, memory
     value, success := string_to_float64(value_string);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -525,9 +525,9 @@ json_parse_into :: inline (content: string, index: int, result: *u8, memory: *[.
     value, success := string_to_int(value_string, 10, u8);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -555,9 +555,9 @@ json_parse_into :: inline (content: string, index: int, result: *u16, memory: *[
     value, success := string_to_int(value_string, 10, u16);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -585,9 +585,9 @@ json_parse_into :: inline (content: string, index: int, result: *u32, memory: *[
     value, success := string_to_int(value_string, 10, u32);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -615,9 +615,9 @@ json_parse_into :: inline (content: string, index: int, result: *u64, memory: *[
     value, success := string_to_int(value_string, 10, u64);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -645,9 +645,9 @@ json_parse_into :: inline (content: string, index: int, result: *s8, memory: *[.
     value, success := string_to_int(value_string, 10, s8);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -675,9 +675,9 @@ json_parse_into :: inline (content: string, index: int, result: *s16, memory: *[
     value, success := string_to_int(value_string, 10, s16);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -705,9 +705,9 @@ json_parse_into :: inline (content: string, index: int, result: *s32, memory: *[
     value, success := string_to_int(value_string, 10, s32);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -735,9 +735,9 @@ json_parse_into :: inline (content: string, index: int, result: *s64, memory: *[
     value, success := string_to_int(value_string, 10, s64);
     if success {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = value;
+            absolute(result, memory.data, relative).* = value;
         } else {
-            << result = value;
+            result.* = value;
         }
         return index, true;
     }
@@ -752,16 +752,16 @@ json_parse_into :: inline (content: string, index: int, result: *bool, memory: *
 
     if is_true(content, index) {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = true;
+            absolute(result, memory.data, relative).* = true;
         } else {
-            << result = true;
+            result.* = true;
         }
         index += 4;
     } else if is_false(content, index) {
         #if contiguous_memory {
-            << absolute(result, memory.data, relative) = false;
+            absolute(result, memory.data, relative).* = false;
         } else {
-            << result = false;
+            result.* = false;
         }
         index += 5;
     } else {
@@ -798,7 +798,7 @@ json_parse_into :: inline (content: string, index: int, result: *string, memory:
             result.data = value.data;
             result.count = value.count;
         } else {
-            << result = copy_string(value);
+            result.* = copy_string(value);
         }
     }
 
@@ -830,7 +830,7 @@ skip_unknown_type :: inline (content: string, index: int) -> int, bool {
             }
         }
     }
-    
+
     return index, false;
 }
 
@@ -1184,7 +1184,7 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
                         continue;
                     }
 
-                    append(*builder, get_child(<< cast(*Type) *member.type, tprint("%.%", top_level_name, member.name), keep_strings_in_place));
+                    append(*builder, get_child((cast(*Type) *member.type).*, tprint("%.%", top_level_name, member.name), keep_strings_in_place));
                 }
             }
         } else if info.type == .POINTER {
@@ -1199,7 +1199,7 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
             append(*builder, top_level_name);
             append(*builder, ") + pointer_offset);\n");
 
-            append(*builder, get_child(<< cast(*Type) *pointer_info.pointer_to, tprint("%.*", top_level_name), keep_strings_in_place));
+            append(*builder, get_child((cast(*Type) *pointer_info.pointer_to).*, tprint("%.*", top_level_name), keep_strings_in_place));
             append(*builder, "}\n");
         } else if info.type == .ARRAY && array_info.array_type == .RESIZABLE {
             append(*builder, "if ");
@@ -1212,21 +1212,21 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
             append(*builder, ".data) + pointer_offset);\n");
 
             // check if there is anything to do for the array element type, and if so loop it
-            if get_child(<< cast(*Type) *array_info.element_type, "", keep_strings_in_place) {
+            if get_child((cast(*Type) *array_info.element_type).*, "", keep_strings_in_place) {
                 iterator_name := tprint("%_iterator", replace(replace(replace(replace(top_level_name, ".", "_"), "[", "_"), "]", "_"), "*", "_"));
                 append(*builder, "for ");
                 append(*builder, iterator_name);
                 append(*builder, ": 0..");
                 append(*builder, top_level_name);
                 append(*builder, ".count - 1 {\n");
-                append(*builder, get_child(<< cast(*Type) *array_info.element_type, tprint("%.data[%]", top_level_name, iterator_name), keep_strings_in_place));
+                append(*builder, get_child((cast(*Type) *array_info.element_type).*, tprint("%.data[%]", top_level_name, iterator_name), keep_strings_in_place));
                 append(*builder, "}\n");
             }
 
             append(*builder, "}\n");
         } else if info.type == .ARRAY && array_info.array_type == .FIXED {
             for i: 0..array_info.array_count - 1 {
-                append(*builder, get_child(<< cast(*Type) *array_info.element_type, tprint("%.data[%]", top_level_name, i), keep_strings_in_place));
+                append(*builder, get_child((cast(*Type) *array_info.element_type).*, tprint("%.data[%]", top_level_name, i), keep_strings_in_place));
             }
         } else if info.type == .STRING && !keep_strings_in_place {
             append(*builder, "if ");
@@ -1237,7 +1237,7 @@ get_pointer_update_string :: (t: Type, top_level_name: string, keep_strings_in_p
             append(*builder, ".data = xx ((cast(*u8) ");
             append(*builder, top_level_name);
             append(*builder, ".data) + pointer_offset);\n");
-            
+
             append(*builder, "}\n");
         }
 
