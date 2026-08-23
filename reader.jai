@@ -847,7 +847,7 @@ allocate :: (memory: *[..] u8, bytes: int, $T: Type, $initialize: bool = true, $
     required_bytes := memory.count + bytes;
     allocate_bytes: int = ---;
 
-    #if ASM {
+    #if ASM && CPU == .X64 {
         result: s64 = ---;
         required_bytes -= 1;
         // count leading zeros
@@ -857,6 +857,7 @@ allocate :: (memory: *[..] u8, bytes: int, $T: Type, $initialize: bool = true, $
         allocate_bytes = 1 << (64 - result);
     } else {
         allocate_bytes = memory.allocated;
+        if allocate_bytes == 0 allocate_bytes = 1;
         while allocate_bytes < required_bytes {
             allocate_bytes += allocate_bytes;
         }
