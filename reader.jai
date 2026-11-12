@@ -851,13 +851,11 @@ allocate :: (memory: *[..] u8, bytes: int, $T: Type, $initialize: bool = true, $
     allocate_bytes: int = ---;
 
     #if ASM && CPU == .X64 {
-        result: s64 = ---;
-        required_bytes -= 1;
-        // count leading zeros
-        #asm {
-            lzcnt result, required_bytes;
-        }
-        allocate_bytes = 1 << (64 - result);
+        // The next power of two at or above required_bytes. Not lzcnt: a CPU without it (Intel
+        // before Haswell, some x64 emulators) runs those bytes as bsr, and every parse then
+        // asked for about 2^55 bytes and failed.
+        allocate_bytes = 1;
+        while allocate_bytes < required_bytes allocate_bytes += allocate_bytes;
     } else {
         allocate_bytes = memory.allocated;
         if allocate_bytes == 0 allocate_bytes = 1;
