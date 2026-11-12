@@ -3,7 +3,10 @@ json_parse :: (content: string, $T: Type, $contiguous_memory: bool = true, $keep
     index := trim_right(content, 0);
     result: T;
     memory: [..] u8;
-    if json_parse_into(content, index, *result, *memory, false, contiguous_memory, keep_strings_in_place) {
+    // json_parse_into answers where it stopped and whether it parsed. The index is never 0
+    // for content that begins anything, so it is the second answer that says success.
+    end_index, parsed := json_parse_into(content, index, *result, *memory, false, contiguous_memory, keep_strings_in_place);
+    if parsed {
         #if contiguous_memory {
             if memory.data {
                 pointer_offset := cast(int) memory.data - 1;
